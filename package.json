@@ -1,0 +1,24 @@
+{
+  "name": "musix",
+  "version": "0.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "overrides": {
+    "react": "19.2.3",
+    "react-dom": "19.2.3"
+  },
+  "scripts": {
+    "dev": "npm run dev -w @musix/web",
+    "dev:web": "npm run dev -w @musix/web",
+    "dev:mobile": "npm run start -w @musix/mobile",
+    "start": "npm run start -w @musix/mobile",
+    "android": "npm run android -w @musix/mobile",
+    "ios": "npm run ios -w @musix/mobile",
+    "build:web": "npm run build -w @musix/web",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present"
+  }
+}
