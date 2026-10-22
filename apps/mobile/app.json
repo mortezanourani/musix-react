@@ -11,6 +11,16 @@
     },
     "android": {
       "package": "com.morteza.nourani.musix",
+      "permissions": [
+        "android.permission.READ_MEDIA_AUDIO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED"
+      ],
+      "blockedPermissions": [
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -23,7 +33,23 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-status-bar"
-    ]
+      "expo-status-bar",
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow musix to read the audio files in your Music directory.",
+          "savePhotosPermission": "Allow musix to save audio files.",
+          "granularPermissions": [
+            "audio"
+          ]
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "eebfbdab-b51e-42da-89e0-71c20cb211ed"
+      }
+    },
+    "owner": "morteza.nourani"
   }
 }

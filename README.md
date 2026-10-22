@@ -11,7 +11,14 @@ Monorepo for the musix music player.
   React Native, no DOM.
 - **`packages/ui`** — shared design tokens, theme, and icons (not components).
 
-> Structure only. No features are implemented yet.
+## Current state
+
+- `apps/mobile` — home screen with an **Update Library** button. It requests audio
+  permission, scans the device's `Music` directory through the media store, and
+  lists every file found with its title, folder, and duration.
+
+Tag-based metadata (artist, album, artwork) is not read yet — the media store
+only exposes filenames. That will come from a native tag reader.
 
 ## Requirements
 
