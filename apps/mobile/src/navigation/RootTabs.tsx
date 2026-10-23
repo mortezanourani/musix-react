@@ -1,20 +1,22 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { ComponentProps } from 'react';
 import { StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import type {
+  AlbumsStackParamList,
+  ArtistsStackParamList,
+  RootTabParamList,
+} from './types';
+import { AlbumTracksScreen } from '../screens/AlbumTracksScreen';
+import { AlbumsScreen } from '../screens/AlbumsScreen';
+import { ArtistAlbumsScreen } from '../screens/ArtistAlbumsScreen';
+import { ArtistsScreen } from '../screens/ArtistsScreen';
 import { HomeScreen } from '../screens/HomeScreen';
 import { PlaceholderScreen } from '../screens/PlaceholderScreen';
 import { SearchScreen } from '../screens/SearchScreen';
 import { colors } from '../theme/colors';
-
-export type RootTabParamList = {
-  Home: undefined;
-  Albums: undefined;
-  Artists: undefined;
-  Books: undefined;
-  Search: undefined;
-};
 
 type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
 
@@ -27,6 +29,16 @@ const tabIcons: Record<keyof RootTabParamList, { active: IconName; inactive: Ico
 };
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
+const AlbumsStack = createNativeStackNavigator<AlbumsStackParamList>();
+const ArtistsStack = createNativeStackNavigator<ArtistsStackParamList>();
+
+const stackScreenOptions = {
+  headerStyle: { backgroundColor: colors.background },
+  headerTintColor: colors.text,
+  headerTitleStyle: { fontWeight: '600' as const },
+  headerShadowVisible: false,
+  contentStyle: { backgroundColor: colors.background },
+};
 
 export function RootTabs() {
   const insets = useSafeAreaInsets();
@@ -50,31 +62,42 @@ export function RootTabs() {
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Albums" component={AlbumsScreen} />
-      <Tab.Screen name="Artists" component={ArtistsScreen} />
+      <Tab.Screen name="Albums" component={AlbumsNavigator} />
+      <Tab.Screen name="Artists" component={ArtistsNavigator} />
       <Tab.Screen name="Books" component={BooksScreen} />
       <Tab.Screen name="Search" component={SearchScreen} />
     </Tab.Navigator>
   );
 }
 
-function AlbumsScreen() {
+function AlbumsNavigator() {
   return (
-    <PlaceholderScreen
-      title="Albums"
-      icon="album"
-      description="Albums will appear here once track tags are read from your files."
-    />
+    <AlbumsStack.Navigator screenOptions={stackScreenOptions}>
+      <AlbumsStack.Screen
+        name="AlbumsList"
+        component={AlbumsScreen}
+        options={{ headerShown: false }}
+      />
+      <AlbumsStack.Screen name="AlbumTracks" component={AlbumTracksScreen} />
+    </AlbumsStack.Navigator>
   );
 }
 
-function ArtistsScreen() {
+function ArtistsNavigator() {
   return (
-    <PlaceholderScreen
-      title="Artists"
-      icon="account-music"
-      description="Artists will appear here once track tags are read from your files."
-    />
+    <ArtistsStack.Navigator screenOptions={stackScreenOptions}>
+      <ArtistsStack.Screen
+        name="ArtistsList"
+        component={ArtistsScreen}
+        options={{ headerShown: false }}
+      />
+      <ArtistsStack.Screen
+        name="ArtistAlbums"
+        component={ArtistAlbumsScreen}
+        options={({ route }) => ({ title: route.params.artistName })}
+      />
+      <ArtistsStack.Screen name="AlbumTracks" component={AlbumTracksScreen} />
+    </ArtistsStack.Navigator>
   );
 }
 

@@ -1,5 +1,6 @@
 import type { Track } from '@musix/core';
 import * as MediaLibrary from 'expo-media-library/legacy';
+import { readTrackMetadata, type TrackMetadata } from './readTrackMetadata';
 
 const PAGE_SIZE = 500;
 
@@ -16,8 +17,8 @@ export class MusicPermissionError extends Error {
 }
 
 /**
- * Reads every audio asset known to the device's media store and keeps the ones
- * stored inside the Music directory.
+ * Reads every audio asset known to the device's media store, keeps the ones
+ * stored inside the Music directory, and enriches them with embedded tags.
  */
 export async function scanMusicDirectory(): Promise<Track[]> {
   const permission = await MediaLibrary.requestPermissionsAsync(false, ['audio']);
@@ -27,11 +28,17 @@ export async function scanMusicDirectory(): Promise<Track[]> {
   }
 
   const assets = await getAllAudioAssets();
-
-  return assets
+  const tracks = assets
     .filter((asset) => MUSIC_FOLDER_PATTERN.test(decodeURIComponent(asset.uri)))
-    .map(toTrack)
-    .sort((a, b) => a.title.localeCompare(b.title));
+    .map(toTrack);
+
+  const metadata = await readTrackMetadata(
+    tracks.map((track) => track.uri),
+  );
+
+  return tracks
+    .map((track, index) => applyMetadata(track, metadata[index]))
+    .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }));
 }
 
 async function getAllAudioAssets(): Promise<MediaLibrary.Asset[]> {
@@ -60,10 +67,31 @@ function toTrack(asset: MediaLibrary.Asset): Track {
     id: asset.id,
     filename: asset.filename,
     title: titleFromFilename(asset.filename),
+    artist: null,
+    albumArtist: null,
+    album: null,
+    trackNumber: null,
     folder: folderFromUri(asset.uri),
     uri: asset.uri,
+    artworkUri: null,
     durationMs: Number.isFinite(asset.duration) ? Math.round(asset.duration * 1000) : 0,
     modificationTime: asset.modificationTime ?? null,
+  };
+}
+
+function applyMetadata(track: Track, metadata: TrackMetadata | undefined): Track {
+  if (!metadata) {
+    return track;
+  }
+
+  return {
+    ...track,
+    title: metadata.title ?? track.title,
+    artist: metadata.artist,
+    albumArtist: metadata.albumArtist,
+    album: metadata.album,
+    trackNumber: metadata.trackNumber,
+    artworkUri: metadata.artworkUri,
   };
 }
 

@@ -36,9 +36,11 @@ export function SearchScreen() {
           ? `${tracks.length} ${tracks.length === 1 ? 'file' : 'files'} in Music`
           : scanning
             ? 'Scanning the Music directory…'
-            : status === 'error'
-              ? 'Library update failed.'
-              : 'Reads audio files from the Music directory.'}
+            : status === 'restoring'
+              ? 'Restoring your library…'
+              : status === 'error'
+                ? 'Library update failed.'
+                : 'Reads audio files from the Music directory.'}
       </Text>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
