@@ -13,9 +13,15 @@ Monorepo for the musix music player.
 
 ## Current state
 
-- `apps/mobile` — home screen with an **Update Library** button. It requests audio
-  permission, scans the device's `Music` directory through the media store, and
-  lists every file found with its title, folder, and duration.
+- `apps/mobile` — Home shows the tracks found on the device. The **Update
+  Library** button on the **Search** tab requests audio permission, scans the
+  device's `Music` directory through the media store, and lists every file with
+  its title, folder, and duration.
+- Bottom navigation with **Home**, **Albums**, **Artists**, **Books**, and
+  **Search**. Home is functional and Search hosts the library update; the
+  remaining tabs are placeholders for later phases (audiobooks live under
+  Books). The app uses a dark theme with Apple Music red (`#fa243c`) as its
+  accent color.
 
 Tag-based metadata (artist, album, artwork) is not read yet — the media store
 only exposes filenames. That will come from a native tag reader.

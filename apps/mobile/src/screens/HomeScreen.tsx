@@ -1,84 +1,50 @@
-import { useCallback, useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { Track } from '@musix/core';
-import { scanMusicDirectory } from '../music/scanMusicDirectory';
-
-type ScanStatus = 'idle' | 'scanning' | 'ready' | 'error';
+import { useLibrary } from '../library/LibraryContext';
+import { colors } from '../theme/colors';
 
 export function HomeScreen() {
   const insets = useSafeAreaInsets();
-  const [tracks, setTracks] = useState<Track[]>([]);
-  const [status, setStatus] = useState<ScanStatus>('idle');
-  const [error, setError] = useState<string | null>(null);
-
-  const updateLibrary = useCallback(async () => {
-    setStatus('scanning');
-    setError(null);
-
-    try {
-      const found = await scanMusicDirectory();
-      setTracks(found);
-      setStatus('ready');
-    } catch (cause) {
-      setTracks([]);
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : 'Something went wrong while reading the Music directory.',
-      );
-      setStatus('error');
-    }
-  }, []);
-
+  const { tracks, status, error, updateLibrary } = useLibrary();
   const scanning = status === 'scanning';
 
+  const emptyMessage =
+    status === 'ready'
+      ? 'No audio files found in the Music directory.'
+      : status === 'error'
+        ? ''
+        : 'Tap “Update Library” on the Search tab to list your music.';
+
   return (
-    <View
-      style={[
-        styles.screen,
-        { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 8 },
-      ]}
-    >
+    <View style={[styles.screen, { paddingTop: insets.top + 16 }]}>
       <View style={styles.header}>
-        <Text style={styles.heading}>musix</Text>
+        <Text style={styles.heading}>Musix</Text>
         <Text style={styles.subheading}>Music stored on this device</Text>
       </View>
-
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Update Library"
-        disabled={scanning}
-        onPress={updateLibrary}
-        style={({ pressed }) => [
-          styles.button,
-          pressed && styles.buttonPressed,
-          scanning && styles.buttonDisabled,
-        ]}
-      >
-        {scanning ? (
-          <ActivityIndicator color="#ffffff" />
-        ) : (
-          <Text style={styles.buttonLabel}>Update Library</Text>
-        )}
-      </Pressable>
 
       <Text style={styles.status}>
         {status === 'ready'
           ? `${tracks.length} ${tracks.length === 1 ? 'file' : 'files'} in Music`
           : scanning
             ? 'Scanning the Music directory…'
-            : 'Reads audio files from the Music directory.'}
+            : status === 'error'
+              ? 'Library could not be updated.'
+              : 'Update your library from the Search tab.'}
       </Text>
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {error ? (
+        <View style={styles.errorRow}>
+          <Text style={styles.error}>{error}</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Retry update"
+            onPress={updateLibrary}
+            hitSlop={8}
+          >
+            <Text style={styles.retry}>Retry</Text>
+          </Pressable>
+        </View>
+      ) : null}
 
       <FlatList
         data={tracks}
@@ -99,15 +65,7 @@ export function HomeScreen() {
             </View>
           </View>
         )}
-        ListEmptyComponent={
-          <Text style={styles.empty}>
-            {status === 'ready'
-              ? 'No audio files found in the Music directory.'
-              : status === 'error'
-                ? ''
-                : 'Tap “Update Library” to list the files in your Music directory.'}
-          </Text>
-        }
+        ListEmptyComponent={<Text style={styles.empty}>{emptyMessage}</Text>}
       />
     </View>
   );
@@ -129,50 +87,43 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     paddingHorizontal: 20,
-    backgroundColor: '#0b0b0d',
+    paddingBottom: 8,
+    backgroundColor: colors.background,
   },
   header: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   heading: {
-    color: '#f2f2f5',
+    color: colors.text,
     fontSize: 30,
     fontWeight: '700',
     letterSpacing: 0.5,
   },
   subheading: {
     marginTop: 4,
-    color: '#8e8e98',
+    color: colors.textMuted,
     fontSize: 13,
   },
-  button: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 50,
-    borderRadius: 14,
-    backgroundColor: '#7c5cff',
-  },
-  buttonPressed: {
-    backgroundColor: '#6a4be6',
-  },
-  buttonDisabled: {
-    opacity: 0.7,
-  },
-  buttonLabel: {
-    color: '#ffffff',
-    fontSize: 15,
-    fontWeight: '600',
-  },
   status: {
-    marginTop: 12,
-    color: '#8e8e98',
+    color: colors.textMuted,
     fontSize: 12,
+  },
+  errorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    gap: 10,
   },
   error: {
-    marginTop: 8,
-    color: '#ff6b6b',
+    flex: 1,
+    color: colors.danger,
     fontSize: 12,
     lineHeight: 17,
+  },
+  retry: {
+    color: colors.primary,
+    fontSize: 12,
+    fontWeight: '600',
   },
   list: {
     flex: 1,
@@ -189,13 +140,13 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 14,
     borderRadius: 12,
-    backgroundColor: '#15151a',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#26262e',
+    borderColor: colors.border,
   },
   rowIndex: {
     width: 32,
-    color: '#6c6c78',
+    color: colors.textSubtle,
     fontSize: 12,
     fontVariant: ['tabular-nums'],
   },
@@ -203,18 +154,18 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   rowTitle: {
-    color: '#f2f2f5',
+    color: colors.text,
     fontSize: 14,
     fontWeight: '500',
   },
   rowMeta: {
     marginTop: 3,
-    color: '#8e8e98',
+    color: colors.textMuted,
     fontSize: 11,
   },
   empty: {
     marginTop: 24,
-    color: '#6c6c78',
+    color: colors.textSubtle,
     fontSize: 13,
     lineHeight: 19,
     textAlign: 'center',

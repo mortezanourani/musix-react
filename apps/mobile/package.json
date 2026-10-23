@@ -11,8 +11,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@expo/vector-icons": "^15.0.2",
     "@musix/core": "*",
     "@musix/ui": "*",
+    "@react-navigation/bottom-tabs": "^7.21.0",
+    "@react-navigation/native": "^7.5.1",
     "expo": "~57.0.31",
     "expo-dev-client": "~57.0.20",
     "expo-media-library": "~57.0.5",
@@ -20,7 +23,8 @@
     "ngrok": "^4.1.0",
     "react": "19.2.3",
     "react-native": "0.86.3",
-    "react-native-safe-area-context": "~5.7.0"
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-screens": "~4.26.0"
   },
   "devDependencies": {
     "@types/react": "~19.2.4",
