@@ -1,18 +1,32 @@
 import { getAlbumById, getAlbumTracks } from '@musix/core';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { RouteProp } from '@react-navigation/native';
 import { useLayoutEffect, useMemo } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { ArtworkTile } from '../components/ArtworkTile';
 import { TrackRow } from '../components/TrackRow';
 import { useLibrary } from '../library/LibraryContext';
 import { libraryEmptyMessage } from '../library/messages';
-import type { AlbumsStackParamList, ArtistsStackParamList } from '../navigation/types';
+import type {
+  AlbumsStackParamList,
+  ArtistsStackParamList,
+  HomeStackParamList,
+} from '../navigation/types';
 import { colors } from '../theme/colors';
 import { formatTotalDuration } from '../utils/format';
 
-type AlbumTracksScreenProps =
-  | NativeStackScreenProps<AlbumsStackParamList, 'AlbumTracks'>
-  | NativeStackScreenProps<ArtistsStackParamList, 'AlbumTracks'>;
+/**
+ * Rendered by the Albums, Artists, and Home stacks. They all pass an
+ * `albumId`, so the screen only depends on the pieces it actually uses.
+ */
+type AlbumTracksScreenProps = {
+  navigation: {
+    setOptions: (options: { title: string }) => void;
+  };
+  route:
+    | RouteProp<AlbumsStackParamList, 'AlbumTracks'>
+    | RouteProp<ArtistsStackParamList, 'AlbumTracks'>
+    | RouteProp<HomeStackParamList, 'AlbumTracks'>;
+};
 
 export function AlbumTracksScreen({ navigation, route }: AlbumTracksScreenProps) {
   const { albumId } = route.params;

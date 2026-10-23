@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type {
   AlbumsStackParamList,
   ArtistsStackParamList,
+  HomeStackParamList,
   RootTabParamList,
 } from './types';
 import { AlbumTracksScreen } from '../screens/AlbumTracksScreen';
@@ -29,6 +30,7 @@ const tabIcons: Record<keyof RootTabParamList, { active: IconName; inactive: Ico
 };
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
+const HomeStack = createNativeStackNavigator<HomeStackParamList>();
 const AlbumsStack = createNativeStackNavigator<AlbumsStackParamList>();
 const ArtistsStack = createNativeStackNavigator<ArtistsStackParamList>();
 
@@ -61,12 +63,30 @@ export function RootTabs() {
         ),
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} />
+      <Tab.Screen name="Home" component={HomeNavigator} />
       <Tab.Screen name="Albums" component={AlbumsNavigator} />
       <Tab.Screen name="Artists" component={ArtistsNavigator} />
       <Tab.Screen name="Books" component={BooksScreen} />
       <Tab.Screen name="Search" component={SearchScreen} />
     </Tab.Navigator>
+  );
+}
+
+function HomeNavigator() {
+  return (
+    <HomeStack.Navigator screenOptions={stackScreenOptions}>
+      <HomeStack.Screen
+        name="HomeFeed"
+        component={HomeScreen}
+        options={{ headerShown: false }}
+      />
+      <HomeStack.Screen
+        name="ArtistAlbums"
+        component={ArtistAlbumsScreen}
+        options={({ route }) => ({ title: route.params.artistName })}
+      />
+      <HomeStack.Screen name="AlbumTracks" component={AlbumTracksScreen} />
+    </HomeStack.Navigator>
   );
 }
 
