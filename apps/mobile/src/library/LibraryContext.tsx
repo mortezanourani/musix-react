@@ -1,8 +1,18 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import type { Track } from '@musix/core';
+import { loadStoredLibrary, saveStoredLibrary } from './libraryStorage';
 import { scanMusicDirectory } from '../music/scanMusicDirectory';
 
-export type ScanStatus = 'idle' | 'scanning' | 'ready' | 'error';
+export type ScanStatus = 'restoring' | 'idle' | 'scanning' | 'ready' | 'error';
 
 type LibraryContextValue = {
   tracks: Track[];
@@ -15,10 +25,33 @@ const LibraryContext = createContext<LibraryContextValue | null>(null);
 
 export function LibraryProvider({ children }: { children: ReactNode }) {
   const [tracks, setTracks] = useState<Track[]>([]);
-  const [status, setStatus] = useState<ScanStatus>('idle');
+  const [status, setStatus] = useState<ScanStatus>('restoring');
   const [error, setError] = useState<string | null>(null);
+  const updateStarted = useRef(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    loadStoredLibrary().then((stored) => {
+      if (cancelled || updateStarted.current) {
+        return;
+      }
+
+      if (stored.length > 0) {
+        setTracks(stored);
+        setStatus('ready');
+      } else {
+        setStatus('idle');
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const updateLibrary = useCallback(async () => {
+    updateStarted.current = true;
     setStatus('scanning');
     setError(null);
 
@@ -26,8 +59,13 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       const found = await scanMusicDirectory();
       setTracks(found);
       setStatus('ready');
+
+      try {
+        await saveStoredLibrary(found);
+      } catch {
+        // Keep the freshly scanned library in memory even if saving fails.
+      }
     } catch (cause) {
-      setTracks([]);
       setError(
         cause instanceof Error
           ? cause.message

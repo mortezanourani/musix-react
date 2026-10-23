@@ -15,16 +15,21 @@ Monorepo for the musix music player.
 
 - `apps/mobile` — Home shows the tracks found on the device. The **Update
   Library** button on the **Search** tab requests audio permission, scans the
-  device's `Music` directory through the media store, and lists every file with
-  its title, folder, and duration.
-- Bottom navigation with **Home**, **Albums**, **Artists**, **Books**, and
-  **Search**. Home is functional and Search hosts the library update; the
-  remaining tabs are placeholders for later phases (audiobooks live under
-  Books). The app uses a dark theme with Apple Music red (`#fa243c`) as its
-  accent color.
-
-Tag-based metadata (artist, album, artwork) is not read yet — the media store
-only exposes filenames. That will come from a native tag reader.
+  device's `Music` directory through the media store, reads embedded tags
+  (title, artist, album, album artist, track number, cover art) through a local
+  native module, and persists the result so it survives an app restart.
+- **Albums** shows a two-column grid of album cover tiles (initials when a file
+  has no embedded art), grouped by album title and artist. Tapping an album
+  opens its tracks in album order.
+- **Artists** shows a two-column grid of artist tiles. Tags containing several
+  artists (`A & B`, `A feat. B`, `A; B`) list the track under each artist.
+  Tapping an artist opens that artist's albums.
+- **Home**, **Books**, and **Search** complete the bottom navigation. Books is
+  still a placeholder for a later phase. The app uses a dark theme with Apple
+  Music red (`#fa243c`) as its accent color.
+- Tracks without tags appear under **Unknown Artist** / **Unknown Album**.
+  Embedded cover art is cached under the app's files directory by the native
+  module.
 
 ## Requirements
 
@@ -39,7 +44,7 @@ npm install
 
 ### Mobile (Expo)
 
-Targets **Expo SDK 57**, matching the current Expo Go app.
+Targets **Expo SDK 57**.
 
 ```bash
 npm run dev:mobile      # start Metro
@@ -64,8 +69,14 @@ Or from the repository root:
 npm exec -w @musix/mobile -- expo install expo-audio
 ```
 
-Running the app on a device eventually requires a development build, not Expo Go,
-because audio playback and library access rely on native modules.
+Running the app on a device requires a development build, not Expo Go, because
+audio playback and the tag reader rely on native modules. `npm run android`
+builds a new development build; use it after changing anything under
+`apps/mobile/modules`.
+
+The tag reader is a local Expo module at
+`apps/mobile/modules/music-metadata`. Expo autolinking finds it through the
+`nativeModulesDir` setting in `apps/mobile/package.json`.
 
 ### Web (Vite)
 
@@ -91,6 +102,7 @@ musix-react/
 │   │   ├── app.json
 │   │   ├── index.ts
 │   │   ├── metro.config.js
+│   │   ├── modules/    # local native modules (tag reader)
 │   │   └── assets/
 │   └── web/            # Vite (React, TypeScript)
 │       ├── index.html
