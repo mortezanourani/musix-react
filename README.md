@@ -13,11 +13,16 @@ Monorepo for the musix music player.
 
 ## Current state
 
-- `apps/mobile` — Home shows the tracks found on the device. The **Update
-  Library** button on the **Search** tab requests audio permission, scans the
-  device's `Music` directory through the media store, reads embedded tags
-  (title, artist, album, album artist, track number, cover art) through a local
-  native module, and persists the result so it survives an app restart.
+- `apps/mobile` — **Home** opens with the **Musix** title and a live library
+  search, then horizontally swipeable shelves for **Recently played** tracks
+  (the newest files in the library), **Albums**, **Artists**, and **Books**.
+  Cards are sized for two and a half squares, then scaled down by 10% so the
+  next card peeks in. Tapping a track or album opens it; tapping an artist opens
+  that artist's albums. The **Books** shelf is reserved for the later phase.
+  The **Update Library** button on the **Search** tab requests audio permission,
+  scans the device's `Music` directory through the media store, reads embedded
+  tags (title, artist, album, album artist, track number, cover art) through a
+  local native module, and persists the result so it survives an app restart.
 - **Albums** shows a two-column grid of album cover tiles (initials when a file
   has no embedded art), grouped by album title and artist. Tapping an album
   opens its tracks in album order.
