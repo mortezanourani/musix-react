@@ -5,7 +5,7 @@ import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { CollectionTile } from '../components/CollectionTile';
 import { useLibrary } from '../library/LibraryContext';
 import { libraryEmptyMessage, libraryStatusMessage } from '../library/messages';
-import type { ArtistsStackParamList, HomeStackParamList } from '../navigation/types';
+import type { ArtistsStackParamList, MainStackParamList } from '../navigation/types';
 import { colors } from '../theme/colors';
 
 /**
@@ -18,7 +18,7 @@ type ArtistAlbumsScreenProps = {
   };
   route:
     | RouteProp<ArtistsStackParamList, 'ArtistAlbums'>
-    | RouteProp<HomeStackParamList, 'ArtistAlbums'>;
+    | RouteProp<MainStackParamList, 'ArtistAlbums'>;
 };
 
 export function ArtistAlbumsScreen({ navigation, route }: ArtistAlbumsScreenProps) {
@@ -42,7 +42,7 @@ export function ArtistAlbumsScreen({ navigation, route }: ArtistAlbumsScreenProp
       <FlatList
         data={albums}
         keyExtractor={(album) => album.id}
-        numColumns={2}
+        numColumns={3}
         columnWrapperStyle={styles.columns}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
@@ -75,7 +75,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   columns: {
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
+    gap: '3%',
   },
   listContent: {
     paddingBottom: 16,

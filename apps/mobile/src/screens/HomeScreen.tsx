@@ -15,10 +15,11 @@ import { SearchBar } from '../components/SearchBar';
 import { Shelf, SHELF_GAP, SHELF_PADDING } from '../components/Shelf';
 import { useLibrary } from '../library/LibraryContext';
 import { libraryEmptyMessage, libraryStatusMessage } from '../library/messages';
-import type { HomeStackParamList } from '../navigation/types';
-import { colors } from '../theme/colors';
+import type { MainStackParamList } from '../navigation/types';
+import {MaterialCommunityIcons} from "@expo/vector-icons";
+import { colors } from "../theme/colors";
 
-type HomeScreenProps = NativeStackScreenProps<HomeStackParamList, 'HomeFeed'>;
+type HomeScreenProps = NativeStackScreenProps<MainStackParamList, 'HomeFeed'>;
 
 /** How many tracks the Recently played shelf keeps around. */
 const RECENT_TRACK_LIMIT = 20;
@@ -36,11 +37,11 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
   const searching = searchTerm.length > 0;
 
   const recentTracks = useMemo(
-    () =>
-      [...tracks]
-        .sort((a, b) => (b.modificationTime ?? 0) - (a.modificationTime ?? 0))
-        .slice(0, RECENT_TRACK_LIMIT),
-    [tracks],
+      () =>
+          [...tracks]
+              .sort((a, b) => (b.modificationTime ?? 0) - (a.modificationTime ?? 0))
+              .slice(0, RECENT_TRACK_LIMIT),
+      [tracks],
   );
   const artists = useMemo(() => buildArtists(tracks), [tracks]);
   const albums = useMemo(() => buildAlbums(tracks), [tracks]);
@@ -51,13 +52,13 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
     }
 
     return [...tracks]
-      .filter((track) =>
-        [track.title, track.artist, track.albumArtist, track.album].some((value) =>
-          value?.toLocaleLowerCase().includes(searchTerm),
-        ),
-      )
-      .sort((a, b) => (b.modificationTime ?? 0) - (a.modificationTime ?? 0))
-      .slice(0, RECENT_TRACK_LIMIT);
+        .filter((track) =>
+            [track.title, track.artist, track.albumArtist, track.album].some((value) =>
+                value?.toLocaleLowerCase().includes(searchTerm),
+            ),
+        )
+        .sort((a, b) => (b.modificationTime ?? 0) - (a.modificationTime ?? 0))
+        .slice(0, RECENT_TRACK_LIMIT);
   }, [recentTracks, searching, searchTerm, tracks]);
 
   const visibleArtists = useMemo(() => {
@@ -74,143 +75,154 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
     }
 
     return albums.filter(
-      (album) =>
-        album.title.toLocaleLowerCase().includes(searchTerm) ||
-        album.artist.toLocaleLowerCase().includes(searchTerm),
+        (album) =>
+            album.title.toLocaleLowerCase().includes(searchTerm) ||
+            album.artist.toLocaleLowerCase().includes(searchTerm),
     );
   }, [albums, searching, searchTerm]);
 
   const noResults =
-    searching &&
-    visibleTracks.length === 0 &&
-    visibleAlbums.length === 0 &&
-    visibleArtists.length === 0;
+      searching &&
+      visibleTracks.length === 0 &&
+      visibleAlbums.length === 0 &&
+      visibleArtists.length === 0;
 
   // Size the row for two and a half squares, then shrink each card by 10%.
   const cardWidth = ((width - SHELF_PADDING - SHELF_GAP * 2) / 3.5);
 
   return (
-    <ScrollView
-      style={styles.screen}
-      contentContainerStyle={{ paddingTop: insets.top + 16, paddingBottom: 12 }}
-      showsVerticalScrollIndicator={false}
-      keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="on-drag"
-    >
-      <View style={styles.header}>
-        <Text style={styles.heading}>Musix</Text>
-        <SearchBar value={query} onChangeText={setQuery} />
+      <ScrollView
+          style={styles.screen}
+          contentContainerStyle={{ paddingTop: insets.top + 16, paddingBottom: 12 }}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+      >
+        <View style={styles.header}>
+          <Text style={styles.heading}>Musix</Text>
+          <Pressable
+              onPress={() => navigation.navigate('Settings')}
+              style={{ marginRight: 16, position: "absolute", top: 12, right: 0,  }}
+              hitSlop={8}
+          >
+            <MaterialCommunityIcons
+                name="cog"
+                size={24}
+                color={colors.text}
+            />
+          </Pressable>
+          <SearchBar value={query} onChangeText={setQuery} />
 
-        {status !== 'ready' ? (
-          <View style={styles.statusRow}>
-            <Text style={styles.status}>
-              {status === 'error'
-                ? error ?? 'Library update failed.'
-                : libraryStatusMessage(status, '')}
+          {status !== 'ready' ? (
+              <View style={styles.statusRow}>
+                <Text style={styles.status}>
+                  {status === 'error'
+                      ? error ?? 'Library update failed.'
+                      : libraryStatusMessage(status, '')}
+                </Text>
+                {status === 'error' ? (
+                    <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel="Retry update"
+                        onPress={updateLibrary}
+                        hitSlop={8}
+                    >
+                      <Text style={styles.retry}>Retry</Text>
+                    </Pressable>
+                ) : null}
+              </View>
+          ) : null}
+        </View>
+
+        {noResults ? (
+            <Text style={styles.noResults}>
+              No songs, albums, or artists match “{query.trim()}”.
             </Text>
-            {status === 'error' ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Retry update"
-                onPress={updateLibrary}
-                hitSlop={8}
-              >
-                <Text style={styles.retry}>Retry</Text>
-              </Pressable>
-            ) : null}
-          </View>
-        ) : null}
-      </View>
+        ) : (
+            <>
+              {visibleTracks.length > 0 || !searching ? (
+                  <Shelf
+                      title={searching ? 'Songs' : 'Recently played'}
+                      data={visibleTracks}
+                      keyExtractor={(track) => track.id}
+                      cardWidth={cardWidth}
+                      emptyMessage={libraryEmptyMessage(status, 'No tracks in your library yet.')}
+                      renderItem={({ item }) => (
+                          <MediaCard
+                              width={cardWidth}
+                              artworkUri={item.artworkUri}
+                              title={item.title}
+                              subtitle={getTrackArtistName(item)}
+                              accessibilityLabel={`Open album ${item.album ?? item.title}`}
+                              onPress={() =>
+                                  navigation.navigate('AlbumTracks', { albumId: getAlbumId(item) })
+                              }
+                          />
+                      )}
+                  />
+              ) : null}
 
-      {noResults ? (
-        <Text style={styles.noResults}>
-          No songs, albums, or artists match “{query.trim()}”.
-        </Text>
-      ) : (
-        <>
-          {visibleTracks.length > 0 || !searching ? (
-            <Shelf
-              title={searching ? 'Songs' : 'Recently played'}
-              data={visibleTracks}
-              keyExtractor={(track) => track.id}
-              cardWidth={cardWidth}
-              emptyMessage={libraryEmptyMessage(status, 'No tracks in your library yet.')}
-              renderItem={({ item }) => (
-                <MediaCard
-                  width={cardWidth}
-                  artworkUri={item.artworkUri}
-                  title={item.title}
-                  subtitle={getTrackArtistName(item)}
-                  accessibilityLabel={`Open album ${item.album ?? item.title}`}
-                  onPress={() =>
-                    navigation.navigate('AlbumTracks', { albumId: getAlbumId(item) })
-                  }
-                />
-              )}
-            />
-          ) : null}
+              {visibleAlbums.length > 0 || !searching ? (
+                  <Shelf
+                      title="Albums"
+                      data={visibleAlbums}
+                      keyExtractor={(album) => album.id}
+                      cardWidth={cardWidth}
+                      emptyMessage={libraryEmptyMessage(
+                          status,
+                          'Albums from your library will appear here.',
+                      )}
+                      renderItem={({ item }) => (
+                          <MediaCard
+                              width={cardWidth}
+                              artworkUri={item.artworkUri}
+                              title={item.title}
+                              subtitle={item.artist}
+                              accessibilityLabel={`Open album ${item.title} by ${item.artist}`}
+                              onPress={() => navigation.navigate('AlbumTracks', { albumId: item.id })}
+                          />
+                      )}
+                  />
+              ) : null}
 
-          {visibleAlbums.length > 0 || !searching ? (
-            <Shelf
-              title="Albums"
-              data={visibleAlbums}
-              keyExtractor={(album) => album.id}
-              cardWidth={cardWidth}
-              emptyMessage={libraryEmptyMessage(
-                status,
-                'Albums from your library will appear here.',
-              )}
-              renderItem={({ item }) => (
-                <MediaCard
-                  width={cardWidth}
-                  artworkUri={item.artworkUri}
-                  title={item.title}
-                  subtitle={item.artist}
-                  accessibilityLabel={`Open album ${item.title} by ${item.artist}`}
-                  onPress={() => navigation.navigate('AlbumTracks', { albumId: item.id })}
-                />
-              )}
-            />
-          ) : null}
+              {visibleArtists.length > 0 || !searching ? (
+                  <Shelf
+                      title="Artists"
+                      data={visibleArtists}
+                      keyExtractor={(artist) => artist.name.toLocaleLowerCase()}
+                      cardWidth={cardWidth}
+                      emptyMessage={libraryEmptyMessage(
+                          status,
+                          'Artists from your library will appear here.',
+                      )}
+                      renderItem={({ item }) => (
+                          <MediaCard
+                              width={cardWidth}
+                              artworkUri={item.artworkUri}
+                              title={item.name}
+                              subtitle={`${item.albumCount} ${item.albumCount === 1 ? 'album' : 'albums'}`}
+                              accessibilityLabel={`Open albums by ${item.name}`}
+                              onPress={() =>
+                                  navigation.navigate('ArtistAlbums', { artistName: item.name })
+                              }
+                          />
+                      )}
+                  />
+              ) : null}
 
-          {visibleArtists.length > 0 || !searching ? (
-            <Shelf
-              title="Artists"
-              data={visibleArtists}
-              keyExtractor={(artist) => artist.name.toLocaleLowerCase()}
-              cardWidth={cardWidth}
-              emptyMessage={libraryEmptyMessage(
-                status,
-                'Artists from your library will appear here.',
-              )}
-              renderItem={({ item }) => (
-                <MediaCard
-                  width={cardWidth}
-                  artworkUri={item.artworkUri}
-                  title={item.name}
-                  subtitle={`${item.albumCount} ${item.albumCount === 1 ? 'album' : 'albums'}`}
-                  accessibilityLabel={`Open albums by ${item.name}`}
-                  onPress={() =>
-                    navigation.navigate('ArtistAlbums', { artistName: item.name })
-                  }
-                />
-              )}
-            />
-          ) : null}
-
-          {!searching ? (
-            <Shelf<never>
-              title="Books"
-              data={NO_BOOKS}
-              keyExtractor={() => 'book'}
-              cardWidth={cardWidth}
-              emptyMessage="Audiobooks and PDFs will appear here."
-              renderItem={() => null}
-            />
-          ) : null}
-        </>
-      )}
-    </ScrollView>
+              {!searching ? (
+                  <Shelf<never>
+                      title="Books"
+                      data={NO_BOOKS}
+                      keyExtractor={() => 'book'}
+                      cardWidth={cardWidth}
+                      emptyMessage="Audiobooks and PDFs will appear here."
+                      renderItem={() => null}
+                  />
+              ) : null}
+            </>
+        )}
+      </ScrollView>
   );
 }
 

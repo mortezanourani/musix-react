@@ -1,13 +1,6 @@
-export type RootTabParamList = {
-  Home: undefined;
-  Albums: undefined;
-  Artists: undefined;
-  Books: undefined;
-  Search: undefined;
-};
-
-export type HomeStackParamList = {
+export type MainStackParamList = {
   HomeFeed: undefined;
+  Settings: undefined;
   ArtistAlbums: { artistName: string };
   AlbumTracks: { albumId: string };
 };

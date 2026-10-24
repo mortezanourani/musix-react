@@ -40,7 +40,7 @@ export function CollectionTile({
 
 const styles = StyleSheet.create({
   tile: {
-    width: '31%',
+    width: '31.33333%',
     marginBottom: 20,
   },
   pressed: {
