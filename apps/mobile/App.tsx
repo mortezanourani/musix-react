@@ -2,7 +2,7 @@ import { DarkTheme, NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { LibraryProvider } from './src/library/LibraryContext';
-import { RootTabs } from './src/navigation/RootTabs';
+import { MainStack } from './src/navigation/MainStack';
 import { colors } from './src/theme/colors';
 
 const navigationTheme = {
@@ -24,7 +24,7 @@ export default function App() {
       <StatusBar style="light" />
       <LibraryProvider>
         <NavigationContainer theme={navigationTheme}>
-          <RootTabs />
+          <MainStack />
         </NavigationContainer>
       </LibraryProvider>
     </SafeAreaProvider>

@@ -9,7 +9,7 @@ import { libraryEmptyMessage } from '../library/messages';
 import type {
   AlbumsStackParamList,
   ArtistsStackParamList,
-  HomeStackParamList,
+  MainStackParamList,
 } from '../navigation/types';
 import { colors } from '../theme/colors';
 import { formatTotalDuration } from '../utils/format';
@@ -25,7 +25,7 @@ type AlbumTracksScreenProps = {
   route:
     | RouteProp<AlbumsStackParamList, 'AlbumTracks'>
     | RouteProp<ArtistsStackParamList, 'AlbumTracks'>
-    | RouteProp<HomeStackParamList, 'AlbumTracks'>;
+    | RouteProp<MainStackParamList, 'AlbumTracks'>;
 };
 
 export function AlbumTracksScreen({ navigation, route }: AlbumTracksScreenProps) {
