@@ -1,33 +1,18 @@
 import { getAlbumById, getAlbumTracks } from '@musix/core';
-import type { RouteProp } from '@react-navigation/native';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useLayoutEffect, useMemo } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { ArtworkTile } from '../components/ArtworkTile';
 import { TrackRow } from '../components/TrackRow';
 import { useLibrary } from '../library/LibraryContext';
 import { libraryEmptyMessage } from '../library/messages';
-import type {
-  AlbumsStackParamList,
-  ArtistsStackParamList,
-  MainStackParamList,
-} from '../navigation/types';
+import type { MainStackParamList } from '../navigation/types';
 import type { ThemeColors } from '../theme/colors';
 import { useThemedStyles } from '../theme/useThemedStyles';
 import { formatTotalDuration } from '../utils/format';
 
-/**
- * Rendered by the Albums, Artists, and Home stacks. They all pass an
- * `albumId`, so the screen only depends on the pieces it actually uses.
- */
-type AlbumTracksScreenProps = {
-  navigation: {
-    setOptions: (options: { title: string }) => void;
-  };
-  route:
-    | RouteProp<AlbumsStackParamList, 'AlbumTracks'>
-    | RouteProp<ArtistsStackParamList, 'AlbumTracks'>
-    | RouteProp<MainStackParamList, 'AlbumTracks'>;
-};
+/** Shows the tracks of one album, opened from the Home feed. */
+type AlbumTracksScreenProps = NativeStackScreenProps<MainStackParamList, 'AlbumTracks'>;
 
 export function AlbumTracksScreen({ navigation, route }: AlbumTracksScreenProps) {
   const { albumId } = route.params;

@@ -4,7 +4,7 @@ import type { ScanStatus } from './LibraryContext';
 export function libraryStatusMessage(
   status: ScanStatus,
   ready: string,
-  idle = 'Update your library from the Search tab.',
+  idle = 'Update your library from the Settings page.',
 ): string {
   switch (status) {
     case 'restoring':
@@ -32,6 +32,6 @@ export function libraryEmptyMessage(status: ScanStatus, ready: string): string {
     case 'error':
       return 'Fix the library error and try again.';
     default:
-      return 'Update your library from the Search tab to fill this page.';
+      return 'Update your library from the Settings page to fill this page.';
   }
 }

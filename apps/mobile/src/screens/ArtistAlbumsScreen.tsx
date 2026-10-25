@@ -1,26 +1,16 @@
 import { getArtistAlbums } from '@musix/core';
-import type { RouteProp } from '@react-navigation/native';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useMemo } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { CollectionTile } from '../components/CollectionTile';
 import { useLibrary } from '../library/LibraryContext';
 import { libraryEmptyMessage, libraryStatusMessage } from '../library/messages';
-import type { ArtistsStackParamList, MainStackParamList } from '../navigation/types';
+import type { MainStackParamList } from '../navigation/types';
 import type { ThemeColors } from '../theme/colors';
 import { useThemedStyles } from '../theme/useThemedStyles';
 
-/**
- * Rendered by the Artists and Home stacks. Both pass an `artistName` and open
- * albums inside the stack they belong to.
- */
-type ArtistAlbumsScreenProps = {
-  navigation: {
-    navigate: (screen: 'AlbumTracks', params: { albumId: string }) => void;
-  };
-  route:
-    | RouteProp<ArtistsStackParamList, 'ArtistAlbums'>
-    | RouteProp<MainStackParamList, 'ArtistAlbums'>;
-};
+/** Lists the albums of one artist, opened from the Home feed. */
+type ArtistAlbumsScreenProps = NativeStackScreenProps<MainStackParamList, 'ArtistAlbums'>;
 
 export function ArtistAlbumsScreen({ navigation, route }: ArtistAlbumsScreenProps) {
   const { artistName } = route.params;
