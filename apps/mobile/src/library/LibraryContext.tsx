@@ -10,6 +10,7 @@ import {
 } from 'react';
 import type { Track } from '@musix/core';
 import { loadStoredLibrary, saveStoredLibrary } from './libraryStorage';
+import { loadAudiobookAlbumIds, saveAudiobookAlbumIds } from './audiobookStorage';
 import { scanMusicDirectory } from '../music/scanMusicDirectory';
 
 export type ScanStatus = 'restoring' | 'idle' | 'scanning' | 'ready' | 'error';
@@ -19,6 +20,8 @@ type LibraryContextValue = {
   status: ScanStatus;
   error: string | null;
   updateLibrary: () => Promise<void>;
+  audiobookAlbumIds: ReadonlySet<string>;
+  toggleAudiobookAlbum: (albumId: string) => Promise<void>;
 };
 
 const LibraryContext = createContext<LibraryContextValue | null>(null);
@@ -27,15 +30,18 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   const [tracks, setTracks] = useState<Track[]>([]);
   const [status, setStatus] = useState<ScanStatus>('restoring');
   const [error, setError] = useState<string | null>(null);
+  const [audiobookAlbumIds, setAudiobookAlbumIds] = useState<Set<string>>(new Set());
   const updateStarted = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
 
-    loadStoredLibrary().then((stored) => {
+    Promise.all([loadStoredLibrary(), loadAudiobookAlbumIds()]).then(([stored, audiobookIds]) => {
       if (cancelled || updateStarted.current) {
         return;
       }
+
+      setAudiobookAlbumIds(audiobookIds);
 
       if (stored.length > 0) {
         setTracks(stored);
@@ -75,9 +81,23 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const toggleAudiobookAlbum = useCallback(async (albumId: string) => {
+    setAudiobookAlbumIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(albumId)) {
+        next.delete(albumId);
+      } else {
+        next.add(albumId);
+      }
+      // Fire and forget persistence
+      saveAudiobookAlbumIds(next);
+      return next;
+    });
+  }, []);
+
   const value = useMemo(
-    () => ({ tracks, status, error, updateLibrary }),
-    [tracks, status, error, updateLibrary],
+    () => ({ tracks, status, error, updateLibrary, audiobookAlbumIds, toggleAudiobookAlbum }),
+    [tracks, status, error, updateLibrary, audiobookAlbumIds, toggleAudiobookAlbum],
   );
 
   return <LibraryContext.Provider value={value}>{children}</LibraryContext.Provider>;

@@ -74,7 +74,7 @@ export function getAlbumId(track: Track): string {
 }
 
 /** Builds the album list shown on the Albums page. */
-export function buildAlbums(tracks: readonly Track[]): AlbumSummary[] {
+export function buildAlbums(tracks: readonly Track[], audiobookAlbumIds: ReadonlySet<string> = new Set()): AlbumSummary[] {
   const albums = new Map<string, Omit<AlbumSummary, 'id'>>();
 
   for (const track of tracks) {
@@ -94,10 +94,11 @@ export function buildAlbums(tracks: readonly Track[]): AlbumSummary[] {
       artworkUri: track.artworkUri,
       trackCount: 1,
       durationMs: track.durationMs,
+      isAudiobook: false,
     });
   }
 
-  return Array.from(albums, ([id, album]) => ({ id, ...album })).sort((a, b) => {
+  return Array.from(albums, ([id, album]) => ({ id, ...album, isAudiobook: audiobookAlbumIds.has(id) })).sort((a, b) => {
     const unknownOrder = compareUnknownLast(a.title, b.title, UNKNOWN_ALBUM);
 
     return unknownOrder !== 0
@@ -140,8 +141,8 @@ export function buildArtists(tracks: readonly Track[]): ArtistSummary[] {
 }
 
 /** Finds one album by its id. */
-export function getAlbumById(tracks: readonly Track[], albumId: string): AlbumSummary | null {
-  return buildAlbums(tracks).find((album) => album.id === albumId) ?? null;
+export function getAlbumById(tracks: readonly Track[], albumId: string, audiobookAlbumIds: ReadonlySet<string> = new Set()): AlbumSummary | null {
+  return buildAlbums(tracks, audiobookAlbumIds).find((album) => album.id === albumId) ?? null;
 }
 
 /** All tracks in an album, in track-number order. */
@@ -156,13 +157,14 @@ export function getAlbumTracks(tracks: readonly Track[], albumId: string): Track
 }
 
 /** Albums that contain at least one track by the given artist. */
-export function getArtistAlbums(tracks: readonly Track[], artistName: string): AlbumSummary[] {
+export function getArtistAlbums(tracks: readonly Track[], artistName: string, audiobookAlbumIds: ReadonlySet<string> = new Set()): AlbumSummary[] {
   const key = artistName.toLocaleLowerCase();
 
   return buildAlbums(
     tracks.filter((track) =>
       getTrackArtistNames(track).some((name) => name.toLocaleLowerCase() === key),
     ),
+    audiobookAlbumIds,
   );
 }
 

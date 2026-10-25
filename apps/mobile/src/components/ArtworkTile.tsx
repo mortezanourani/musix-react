@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 const TILE_COLORS = [
   '#243447',
@@ -20,6 +21,8 @@ type ArtworkTileProps = {
   borderRadius?: number;
   /** Font size for the fallback initials. */
   initialsFontSize?: number;
+  /** Shows a book badge to indicate this is an audiobook. */
+  isAudiobook?: boolean;
 };
 
 /** A square cover image that falls back to the collection's initials. */
@@ -28,6 +31,7 @@ export function ArtworkTile({
   title,
   borderRadius = 14,
   initialsFontSize = 34,
+  isAudiobook = false,
 }: ArtworkTileProps) {
   const [failed, setFailed] = useState(false);
 
@@ -50,6 +54,11 @@ export function ArtworkTile({
         <Text style={[styles.initials, { fontSize: initialsFontSize }]} numberOfLines={1}>
           {initials(title)}
         </Text>
+      )}
+      {isAudiobook && (
+        <View style={styles.audiobookBadge}>
+          <MaterialCommunityIcons name="book" size={16} color="#ffffff" />
+        </View>
       )}
     </View>
   );
@@ -91,5 +100,13 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontWeight: '700',
     letterSpacing: 1,
+  },
+  audiobookBadge: {
+    position: 'absolute',
+    bottom: 6,
+    right: 6,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    borderRadius: 10,
+    padding: 4,
   },
 });
