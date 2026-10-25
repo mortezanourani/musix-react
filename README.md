@@ -42,7 +42,9 @@ Monorepo for the musix music player.
   a track is tapped, and advances through the visible list. Minimizing the modal
   keeps playback running and collapses it into a bottom mini-player bar with the
   current track, progress, play-pause, and next controls. Tapping the bar opens
-  the full modal again.
+  the full modal again. Playback continues when the screen locks or the app is
+  backgrounded, and the lock screen / notification shows the track with
+  play-pause and seek controls.
 
 ## Requirements
 
@@ -85,7 +87,9 @@ npm exec -w @musix/mobile -- expo install expo-audio
 Running the app on a device requires a development build, not Expo Go, because
 audio playback and the tag reader rely on native modules. `npm run android`
 builds a new development build; use it after changing anything under
-`apps/mobile/modules` or after adding a native Expo dependency.
+`apps/mobile/modules`, after adding a native Expo dependency, or after changing
+the `expo-audio` config plugin in `app.json` (background playback uses Android
+foreground-service permissions and the iOS `audio` background mode).
 
 The tag reader is a local Expo module at
 `apps/mobile/modules/music-metadata`. Expo autolinking finds it through the

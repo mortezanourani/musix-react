@@ -1,4 +1,4 @@
-import type { Track } from '@musix/core';
+import { getTrackAlbumTitle, getTrackArtistName, type Track } from '@musix/core';
 import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import {
   createContext,
@@ -56,11 +56,46 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     void setAudioModeAsync({
       playsInSilentMode: true,
+      shouldPlayInBackground: true,
+      // Lock screen controls only attach reliably with exclusive audio focus.
       interruptionMode: 'doNotMix',
     }).catch(() => {
       // Playback still works with the platform's default audio mode.
     });
   }, []);
+
+  // Register the player with the OS media session. On Android this is what
+  // starts the media foreground service that keeps playback alive when the
+  // app is backgrounded or the screen locks; on iOS it provides the lock
+  // screen / Control Center metadata and transport controls.
+  useEffect(() => {
+    if (!currentTrack) {
+      return;
+    }
+
+    try {
+      player.setActiveForLockScreen(
+        true,
+        {
+          title: currentTrack.title,
+          artist: getTrackArtistName(currentTrack),
+          albumTitle: getTrackAlbumTitle(currentTrack),
+          artworkUrl: currentTrack.artworkUri ?? undefined,
+        },
+        { showSeekForward: true, showSeekBackward: true },
+      );
+    } catch {
+      // Lock screen controls are best-effort; playback itself is unaffected.
+    }
+
+    return () => {
+      try {
+        player.clearLockScreenControls();
+      } catch {
+        // The player may already be released while switching tracks.
+      }
+    };
+  }, [currentTrack, player]);
 
   // Start every newly selected track; reopening the same track is handled by playTrack.
   useEffect(() => {
