@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
 import { ArtworkTile } from './ArtworkTile';
-import { colors } from '../theme/colors';
+import type { ThemeColors } from '../theme/colors';
+import { useThemedStyles } from '../theme/useThemedStyles';
 
 type CollectionTileProps = {
   artworkUri: string | null;
@@ -18,6 +19,8 @@ export function CollectionTile({
   accessibilityLabel,
   onPress,
 }: CollectionTileProps) {
+  const styles = useThemedStyles(createStyles);
+
   return (
     <Pressable
       accessibilityRole="button"
@@ -38,23 +41,25 @@ export function CollectionTile({
   );
 }
 
-const styles = StyleSheet.create({
-  tile: {
-    width: '31.33333%',
-    marginBottom: 20,
-  },
-  pressed: {
-    opacity: 0.7,
-  },
-  title: {
-    marginTop: 9,
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  subtitle: {
-    marginTop: 3,
-    color: colors.textMuted,
-    fontSize: 11,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    tile: {
+      width: '31.33333%',
+      marginBottom: 20,
+    },
+    pressed: {
+      opacity: 0.7,
+    },
+    title: {
+      marginTop: 9,
+      color: colors.text,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    subtitle: {
+      marginTop: 3,
+      color: colors.textMuted,
+      fontSize: 11,
+    },
+  });
+}

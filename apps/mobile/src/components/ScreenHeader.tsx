@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors } from '../theme/colors';
+import type { ThemeColors } from '../theme/colors';
+import { useThemedStyles } from '../theme/useThemedStyles';
 
 type ScreenHeaderProps = {
   title: string;
@@ -11,6 +12,8 @@ type ScreenHeaderProps = {
 
 /** Page heading plus the current library status and, on failure, a retry. */
 export function ScreenHeader({ title, subtitle, status, error, onRetry }: ScreenHeaderProps) {
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View style={styles.header}>
       <Text style={styles.heading}>{title}</Text>
@@ -36,41 +39,43 @@ export function ScreenHeader({ title, subtitle, status, error, onRetry }: Screen
   );
 }
 
-const styles = StyleSheet.create({
-  header: {
-    marginBottom: 16,
-  },
-  heading: {
-    color: colors.text,
-    fontSize: 30,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  subtitle: {
-    marginTop: 4,
-    color: colors.textMuted,
-    fontSize: 13,
-  },
-  status: {
-    marginTop: 4,
-    color: colors.textMuted,
-    fontSize: 12,
-  },
-  errorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-    gap: 10,
-  },
-  error: {
-    flex: 1,
-    color: colors.danger,
-    fontSize: 12,
-    lineHeight: 17,
-  },
-  retry: {
-    color: colors.primary,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    header: {
+      marginBottom: 16,
+    },
+    heading: {
+      color: colors.text,
+      fontSize: 30,
+      fontWeight: '700',
+      letterSpacing: 0.5,
+    },
+    subtitle: {
+      marginTop: 4,
+      color: colors.textMuted,
+      fontSize: 13,
+    },
+    status: {
+      marginTop: 4,
+      color: colors.textMuted,
+      fontSize: 12,
+    },
+    errorRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 8,
+      gap: 10,
+    },
+    error: {
+      flex: 1,
+      color: colors.danger,
+      fontSize: 12,
+      lineHeight: 17,
+    },
+    retry: {
+      color: colors.primary,
+      fontSize: 12,
+      fontWeight: '600',
+    },
+  });
+}

@@ -29,9 +29,9 @@ Monorepo for the musix music player.
 - **Artists** shows a two-column grid of artist tiles. Tags containing several
   artists (`A & B`, `A feat. B`, `A; B`) list the track under each artist.
   Tapping an artist opens that artist's albums.
-- **Home**, **Books**, and **Search** complete the bottom navigation. Books is
-  still a placeholder for a later phase. The app uses a dark theme with Apple
-  Music red (`#fa243c`) as its accent color.
+- The **Settings** page (gear icon on Home) lets you choose **System**,
+  **Light**, or **Dark** appearance, update the library, and see its scan
+  status. Apple Music red (`#fa243c`) stays the accent color in both themes.
 - Tracks without tags appear under **Unknown Artist** / **Unknown Album**.
   Embedded cover art is cached under the app's files directory by the native
   module.

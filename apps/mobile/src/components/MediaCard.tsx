@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors } from '../theme/colors';
+import type { ThemeColors } from '../theme/colors';
+import { useThemedStyles } from '../theme/useThemedStyles';
 import { ArtworkTile } from './ArtworkTile';
 
 type MediaCardProps = {
@@ -21,6 +22,8 @@ export function MediaCard({
   accessibilityLabel,
   onPress,
 }: MediaCardProps) {
+  const styles = useThemedStyles(createStyles);
+
   const content = (
     <>
       <ArtworkTile artworkUri={artworkUri} title={title} />
@@ -51,19 +54,21 @@ export function MediaCard({
   );
 }
 
-const styles = StyleSheet.create({
-  pressed: {
-    opacity: 0.7,
-  },
-  title: {
-    marginTop: 9,
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  subtitle: {
-    marginTop: 3,
-    color: colors.textMuted,
-    fontSize: 11,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    pressed: {
+      opacity: 0.7,
+    },
+    title: {
+      marginTop: 9,
+      color: colors.text,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    subtitle: {
+      marginTop: 3,
+      color: colors.textMuted,
+      fontSize: 11,
+    },
+  });
+}

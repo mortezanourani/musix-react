@@ -1,6 +1,7 @@
 import { UNKNOWN_ARTIST, type Track } from '@musix/core';
 import { StyleSheet, Text, View } from 'react-native';
-import { colors } from '../theme/colors';
+import type { ThemeColors } from '../theme/colors';
+import { useThemedStyles } from '../theme/useThemedStyles';
 import { formatDuration } from '../utils/format';
 
 type TrackRowProps = {
@@ -13,6 +14,7 @@ type TrackRowProps = {
 
 /** A single track row shared by the Home list and album track lists. */
 export function TrackRow({ track, leading, meta = 'library' }: TrackRowProps) {
+  const styles = useThemedStyles(createStyles);
   const artist = track.artist ?? UNKNOWN_ARTIST;
   const details =
     meta === 'library'
@@ -34,35 +36,37 @@ export function TrackRow({ track, leading, meta = 'library' }: TrackRowProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  leading: {
-    width: 32,
-    color: colors.textSubtle,
-    fontSize: 12,
-    fontVariant: ['tabular-nums'],
-  },
-  body: {
-    flex: 1,
-  },
-  title: {
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  meta: {
-    marginTop: 3,
-    color: colors.textMuted,
-    fontSize: 11,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 8,
+      paddingVertical: 12,
+      paddingHorizontal: 14,
+      borderRadius: 12,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    leading: {
+      width: 32,
+      color: colors.textSubtle,
+      fontSize: 12,
+      fontVariant: ['tabular-nums'],
+    },
+    body: {
+      flex: 1,
+    },
+    title: {
+      color: colors.text,
+      fontSize: 14,
+      fontWeight: '500',
+    },
+    meta: {
+      marginTop: 3,
+      color: colors.textMuted,
+      fontSize: 11,
+    },
+  });
+}

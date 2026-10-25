@@ -1,5 +1,6 @@
 import { FlatList, StyleSheet, Text, View, type ListRenderItem } from 'react-native';
-import { colors } from '../theme/colors';
+import type { ThemeColors } from '../theme/colors';
+import { useThemedStyles } from '../theme/useThemedStyles';
 
 /** Left/right inset shared by the Home header and shelf titles. */
 export const SHELF_PADDING = 20;
@@ -29,6 +30,8 @@ export function Shelf<T>({
   emptyMessage,
   cardWidth,
 }: ShelfProps<T>) {
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View style={styles.section}>
       <Text style={styles.title}>{title}</Text>
@@ -55,31 +58,36 @@ export function Shelf<T>({
 }
 
 function ShelfGap() {
-  return <View style={styles.gap} />;
+  return <View style={gapStyles.gap} />;
 }
 
-const styles = StyleSheet.create({
-  section: {
-    marginBottom: 28,
-  },
-  title: {
-    marginBottom: 12,
-    paddingHorizontal: SHELF_PADDING,
-    color: colors.text,
-    fontSize: 20,
-    fontWeight: '700',
-    letterSpacing: 0.2,
-  },
-  row: {
-    paddingHorizontal: SHELF_PADDING,
-  },
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    section: {
+      marginBottom: 28,
+    },
+    title: {
+      marginBottom: 12,
+      paddingHorizontal: SHELF_PADDING,
+      color: colors.text,
+      fontSize: 20,
+      fontWeight: '700',
+      letterSpacing: 0.2,
+    },
+    row: {
+      paddingHorizontal: SHELF_PADDING,
+    },
+    empty: {
+      paddingHorizontal: SHELF_PADDING,
+      color: colors.textSubtle,
+      fontSize: 13,
+      lineHeight: 19,
+    },
+  });
+}
+
+const gapStyles = StyleSheet.create({
   gap: {
     width: SHELF_GAP,
-  },
-  empty: {
-    paddingHorizontal: SHELF_PADDING,
-    color: colors.textSubtle,
-    fontSize: 13,
-    lineHeight: 19,
   },
 });
