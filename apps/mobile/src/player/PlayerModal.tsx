@@ -36,7 +36,7 @@ export function PlayerModal() {
     currentIndex,
     isPlaying,
     isVisible,
-    closePlayer,
+    minimizePlayer,
     togglePlayback,
     playNext,
     playPrevious,
@@ -69,7 +69,7 @@ export function PlayerModal() {
     <Modal
       visible={isVisible}
       animationType="slide"
-      onRequestClose={closePlayer}
+      onRequestClose={minimizePlayer}
       statusBarTranslucent
     >
       <View
@@ -81,12 +81,12 @@ export function PlayerModal() {
         <View style={styles.topBar}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Close player"
-            onPress={closePlayer}
+            accessibilityLabel="Minimize player"
+            onPress={minimizePlayer}
             hitSlop={12}
             style={styles.topBarButton}
           >
-            <MaterialCommunityIcons name="close" size={28} color={colors.text} />
+            <MaterialCommunityIcons name="chevron-down" size={30} color={colors.text} />
           </Pressable>
 
           <View style={styles.topBarCenter}>
@@ -180,6 +180,7 @@ export function PlayerModal() {
                 name={isPlaying ? 'pause' : 'play'}
                 size={36}
                 color={colors.onPrimary}
+                style={ styles.playButtonIcon }
               />
             </Pressable>
 
@@ -323,10 +324,14 @@ function createStyles(colors: ThemeColors) {
     playButton: {
       width: 72,
       height: 72,
-      borderRadius: 36,
+      borderRadius: 24,
+      transform: 'rotate(45deg)',
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: colors.primary,
+    },
+    playButtonIcon: {
+      transform: 'rotate(-45deg)',
     },
     pressed: {
       opacity: 0.65,

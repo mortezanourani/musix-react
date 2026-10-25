@@ -19,7 +19,10 @@ type PlayerContextValue = {
   isVisible: boolean;
   /** Opens the player modal and starts the track, optionally with a queue. */
   playTrack: (track: Track, queue?: readonly Track[]) => void;
-  closePlayer: () => void;
+  /** Reopens the full player modal without changing playback. */
+  openPlayer: () => void;
+  /** Hides the modal and leaves playback running in the mini-player. */
+  minimizePlayer: () => void;
   togglePlayback: () => void;
   playNext: () => void;
   playPrevious: () => void;
@@ -112,10 +115,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     [currentTrack?.id, player],
   );
 
-  const closePlayer = useCallback(() => {
+  const openPlayer = useCallback(() => {
+    setIsVisible(true);
+  }, []);
+
+  const minimizePlayer = useCallback(() => {
     setIsVisible(false);
-    player.pause();
-  }, [player]);
+  }, []);
 
   const togglePlayback = useCallback(() => {
     if (!currentTrack) {
@@ -168,7 +174,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       isPlaying: status.playing,
       isVisible,
       playTrack,
-      closePlayer,
+      openPlayer,
+      minimizePlayer,
       togglePlayback,
       playNext,
       playPrevious,
@@ -181,7 +188,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       status.playing,
       isVisible,
       playTrack,
-      closePlayer,
+      openPlayer,
+      minimizePlayer,
       togglePlayback,
       playNext,
       playPrevious,

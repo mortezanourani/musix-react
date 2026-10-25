@@ -1,5 +1,6 @@
 export type ThemeColors = {
   background: string;
+  crystal: string;
   surface: string;
   border: string;
   text: string;
@@ -14,6 +15,7 @@ export type ThemeColors = {
 
 export const darkColors: ThemeColors = {
   background: '#0b0b0d',
+  crystal: '#0b0b0d55',
   surface: '#15151a',
   border: '#26262e',
   text: '#f2f2f5',
@@ -27,6 +29,7 @@ export const darkColors: ThemeColors = {
 
 export const lightColors: ThemeColors = {
   background: '#f7f7f9',
+  crystal: '#f7f7f955',
   surface: '#ffffff',
   border: '#e2e2e8',
   text: '#111114',
