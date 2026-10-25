@@ -4,6 +4,8 @@ import { useMemo } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { LibraryProvider } from './src/library/LibraryContext';
 import { MainStack } from './src/navigation/MainStack';
+import { PlayerProvider } from './src/player/PlayerContext';
+import { PlayerModal } from './src/player/PlayerModal';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 
 export default function App() {
@@ -11,7 +13,10 @@ export default function App() {
     <SafeAreaProvider>
       <ThemeProvider>
         <LibraryProvider>
-          <ThemedNavigation />
+          <PlayerProvider>
+            <ThemedNavigation />
+            <PlayerModal />
+          </PlayerProvider>
         </LibraryProvider>
       </ThemeProvider>
     </SafeAreaProvider>

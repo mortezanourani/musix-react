@@ -11,6 +11,19 @@ export function formatDuration(durationMs: number): string {
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
+/** Formats a playback position in seconds as `m:ss`. */
+export function formatPlaybackTime(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds <= 0) {
+    return '0:00';
+  }
+
+  const totalSeconds = Math.floor(seconds);
+  const minutes = Math.floor(totalSeconds / 60);
+  const remainder = totalSeconds % 60;
+
+  return `${minutes}:${String(remainder).padStart(2, '0')}`;
+}
+
 /** Formats a collection duration as `42 min` or `1 hr 12 min`. */
 export function formatTotalDuration(durationMs: number): string {
   if (!durationMs) {

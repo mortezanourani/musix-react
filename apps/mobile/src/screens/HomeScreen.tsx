@@ -1,4 +1,4 @@
-import { buildAlbums, buildArtists, getAlbumId, getTrackArtistName } from '@musix/core';
+import { buildAlbums, buildArtists, getTrackArtistName } from '@musix/core';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useMemo, useState } from 'react';
 import {
@@ -16,6 +16,7 @@ import { Shelf, SHELF_GAP, SHELF_PADDING } from '../components/Shelf';
 import { useLibrary } from '../library/LibraryContext';
 import { libraryEmptyMessage, libraryStatusMessage } from '../library/messages';
 import type { MainStackParamList } from '../navigation/types';
+import { usePlayer } from '../player/PlayerContext';
 import {MaterialCommunityIcons} from "@expo/vector-icons";
 import type { ThemeColors } from "../theme/colors";
 import { useTheme } from "../theme/ThemeContext";
@@ -35,6 +36,7 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   const { tracks, status, error, updateLibrary } = useLibrary();
+  const { playTrack } = usePlayer();
   const [query, setQuery] = useState('');
 
   const searchTerm = query.trim().toLocaleLowerCase();
@@ -157,10 +159,8 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
                               artworkUri={item.artworkUri}
                               title={item.title}
                               subtitle={getTrackArtistName(item)}
-                              accessibilityLabel={`Open album ${item.album ?? item.title}`}
-                              onPress={() =>
-                                  navigation.navigate('AlbumTracks', { albumId: getAlbumId(item) })
-                              }
+                              accessibilityLabel={`Play ${item.title} by ${getTrackArtistName(item)}`}
+                              onPress={() => playTrack(item, visibleTracks)}
                           />
                       )}
                   />
