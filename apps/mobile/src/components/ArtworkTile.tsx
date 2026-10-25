@@ -16,10 +16,12 @@ type ArtworkTileProps = {
   artworkUri: string | null;
   /** Used for the fallback initials and the tile colour. */
   title: string;
+  /** Corner radius of the square tile. */
+  borderRadius?: number;
 };
 
 /** A square cover image that falls back to the collection's initials. */
-export function ArtworkTile({ artworkUri, title }: ArtworkTileProps) {
+export function ArtworkTile({ artworkUri, title, borderRadius = 14 }: ArtworkTileProps) {
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
@@ -29,7 +31,7 @@ export function ArtworkTile({ artworkUri, title }: ArtworkTileProps) {
   const showImage = artworkUri !== null && !failed;
 
   return (
-    <View style={[styles.tile, { backgroundColor: tileColor(title) }]}>
+    <View style={[styles.tile, { backgroundColor: tileColor(title), borderRadius }]}>
       {showImage ? (
         <Image
           source={{ uri: artworkUri }}
@@ -70,7 +72,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-    borderRadius: 14,
   },
   image: {
     position: 'absolute',

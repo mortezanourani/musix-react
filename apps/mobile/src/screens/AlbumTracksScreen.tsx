@@ -7,6 +7,7 @@ import { TrackRow } from '../components/TrackRow';
 import { useLibrary } from '../library/LibraryContext';
 import { libraryEmptyMessage } from '../library/messages';
 import type { MainStackParamList } from '../navigation/types';
+import { usePlayer } from '../player/PlayerContext';
 import type { ThemeColors } from '../theme/colors';
 import { useThemedStyles } from '../theme/useThemedStyles';
 import { formatTotalDuration } from '../utils/format';
@@ -17,6 +18,7 @@ type AlbumTracksScreenProps = NativeStackScreenProps<MainStackParamList, 'AlbumT
 export function AlbumTracksScreen({ navigation, route }: AlbumTracksScreenProps) {
   const { albumId } = route.params;
   const { tracks, status } = useLibrary();
+  const { playTrack, currentTrack } = usePlayer();
   const styles = useThemedStyles(createStyles);
   const album = useMemo(() => getAlbumById(tracks, albumId), [tracks, albumId]);
   const albumTracks = useMemo(() => getAlbumTracks(tracks, albumId), [tracks, albumId]);
@@ -61,6 +63,8 @@ export function AlbumTracksScreen({ navigation, route }: AlbumTracksScreenProps)
           track={item}
           leading={String(item.trackNumber ?? index + 1).padStart(2, '0')}
           meta="album"
+          active={currentTrack?.id === item.id}
+          onPress={() => playTrack(item, albumTracks)}
         />
       )}
       ListEmptyComponent={<Text style={styles.empty}>{emptyMessage}</Text>}

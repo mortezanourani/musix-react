@@ -3,7 +3,7 @@
 Monorepo for the musix music player.
 
 - **`apps/mobile`** — Android app (Expo / React Native). Reads the device's music
-  library and plays it in the background.
+  library and plays it through the Now Playing modal.
 - **`apps/web`** — web client (Vite / React / PWA). Intended for iOS and Windows
   once the music library lives online.
 - **`packages/core`** — framework-agnostic domain logic: models, library
@@ -17,8 +17,9 @@ Monorepo for the musix music player.
   search, then horizontally swipeable shelves for **Recently played** tracks
   (the newest files in the library), **Albums**, **Artists**, and **Books**.
   Cards are sized for two and a half squares, then scaled down by 10% so the
-  next card peeks in. Tapping a track or album opens it; tapping an artist opens
-  that artist's albums. The **Books** shelf is reserved for the later phase.
+  next card peeks in. Tapping a track starts playback in the **Now Playing**
+  modal; tapping an album opens its tracks; tapping an artist opens that
+  artist's albums. The **Books** shelf is reserved for the later phase.
   The **Update Library** button on the **Search** tab requests audio permission,
   scans the device's `Music` directory through the media store, reads embedded
   tags (title, artist, album, album artist, track number, cover art) through a
@@ -35,6 +36,11 @@ Monorepo for the musix music player.
 - Tracks without tags appear under **Unknown Artist** / **Unknown Album**.
   Embedded cover art is cached under the app's files directory by the native
   module.
+- The **Now Playing** modal (a real modal overlay, not a navigation screen)
+  shows the current track's artwork and tags, a tappable progress bar, and
+  previous / play-pause / next controls. Playback uses `expo-audio`, starts when
+  a track is tapped, and advances through the visible list. Closing the modal
+  pauses playback because there is no mini-player yet.
 
 ## Requirements
 
@@ -77,7 +83,7 @@ npm exec -w @musix/mobile -- expo install expo-audio
 Running the app on a device requires a development build, not Expo Go, because
 audio playback and the tag reader rely on native modules. `npm run android`
 builds a new development build; use it after changing anything under
-`apps/mobile/modules`.
+`apps/mobile/modules` or after adding a native Expo dependency.
 
 The tag reader is a local Expo module at
 `apps/mobile/modules/music-metadata`. Expo autolinking finds it through the
