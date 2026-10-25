@@ -18,10 +18,17 @@ type ArtworkTileProps = {
   title: string;
   /** Corner radius of the square tile. */
   borderRadius?: number;
+  /** Font size for the fallback initials. */
+  initialsFontSize?: number;
 };
 
 /** A square cover image that falls back to the collection's initials. */
-export function ArtworkTile({ artworkUri, title, borderRadius = 14 }: ArtworkTileProps) {
+export function ArtworkTile({
+  artworkUri,
+  title,
+  borderRadius = 14,
+  initialsFontSize = 34,
+}: ArtworkTileProps) {
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
@@ -40,7 +47,7 @@ export function ArtworkTile({ artworkUri, title, borderRadius = 14 }: ArtworkTil
           onError={() => setFailed(true)}
         />
       ) : (
-        <Text style={styles.initials} numberOfLines={1}>
+        <Text style={[styles.initials, { fontSize: initialsFontSize }]} numberOfLines={1}>
           {initials(title)}
         </Text>
       )}
@@ -82,7 +89,6 @@ const styles = StyleSheet.create({
   },
   initials: {
     color: '#ffffff',
-    fontSize: 34,
     fontWeight: '700',
     letterSpacing: 1,
   },

@@ -39,8 +39,10 @@ Monorepo for the musix music player.
 - The **Now Playing** modal (a real modal overlay, not a navigation screen)
   shows the current track's artwork and tags, a tappable progress bar, and
   previous / play-pause / next controls. Playback uses `expo-audio`, starts when
-  a track is tapped, and advances through the visible list. Closing the modal
-  pauses playback because there is no mini-player yet.
+  a track is tapped, and advances through the visible list. Minimizing the modal
+  keeps playback running and collapses it into a bottom mini-player bar with the
+  current track, progress, play-pause, and next controls. Tapping the bar opens
+  the full modal again.
 
 ## Requirements
 

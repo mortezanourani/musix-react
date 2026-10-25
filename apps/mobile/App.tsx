@@ -1,9 +1,11 @@
 import { DarkTheme, DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { useMemo } from 'react';
+import { StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { LibraryProvider } from './src/library/LibraryContext';
 import { MainStack } from './src/navigation/MainStack';
+import { MiniPlayer } from './src/player/MiniPlayer';
 import { PlayerProvider } from './src/player/PlayerContext';
 import { PlayerModal } from './src/player/PlayerModal';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
@@ -14,7 +16,10 @@ export default function App() {
       <ThemeProvider>
         <LibraryProvider>
           <PlayerProvider>
-            <ThemedNavigation />
+            <View style={styles.app}>
+              <ThemedNavigation />
+              <MiniPlayer />
+            </View>
             <PlayerModal />
           </PlayerProvider>
         </LibraryProvider>
@@ -52,3 +57,9 @@ function ThemedNavigation() {
     </>
   );
 }
+
+const styles = StyleSheet.create({
+  app: {
+    flex: 1,
+  },
+});
