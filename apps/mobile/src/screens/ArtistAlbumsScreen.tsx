@@ -6,7 +6,8 @@ import { CollectionTile } from '../components/CollectionTile';
 import { useLibrary } from '../library/LibraryContext';
 import { libraryEmptyMessage, libraryStatusMessage } from '../library/messages';
 import type { ArtistsStackParamList, MainStackParamList } from '../navigation/types';
-import { colors } from '../theme/colors';
+import type { ThemeColors } from '../theme/colors';
+import { useThemedStyles } from '../theme/useThemedStyles';
 
 /**
  * Rendered by the Artists and Home stacks. Both pass an `artistName` and open
@@ -24,6 +25,7 @@ type ArtistAlbumsScreenProps = {
 export function ArtistAlbumsScreen({ navigation, route }: ArtistAlbumsScreenProps) {
   const { artistName } = route.params;
   const { tracks, status } = useLibrary();
+  const styles = useThemedStyles(createStyles);
   const albums = useMemo(() => getArtistAlbums(tracks, artistName), [tracks, artistName]);
   const trackCount = albums.reduce((total, album) => total + album.trackCount, 0);
 
@@ -61,31 +63,33 @@ export function ArtistAlbumsScreen({ navigation, route }: ArtistAlbumsScreenProp
   );
 }
 
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 8,
-    backgroundColor: colors.background,
-  },
-  summary: {
-    marginBottom: 16,
-    color: colors.textMuted,
-    fontSize: 12,
-  },
-  columns: {
-    justifyContent: 'flex-start',
-    gap: '3%',
-  },
-  listContent: {
-    paddingBottom: 16,
-  },
-  empty: {
-    marginTop: 24,
-    color: colors.textSubtle,
-    fontSize: 13,
-    lineHeight: 19,
-    textAlign: 'center',
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    screen: {
+      flex: 1,
+      paddingHorizontal: 20,
+      paddingTop: 12,
+      paddingBottom: 8,
+      backgroundColor: colors.background,
+    },
+    summary: {
+      marginBottom: 16,
+      color: colors.textMuted,
+      fontSize: 12,
+    },
+    columns: {
+      justifyContent: 'flex-start',
+      gap: '3%',
+    },
+    listContent: {
+      paddingBottom: 16,
+    },
+    empty: {
+      marginTop: 24,
+      color: colors.textSubtle,
+      fontSize: 13,
+      lineHeight: 19,
+      textAlign: 'center',
+    },
+  });
+}

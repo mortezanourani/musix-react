@@ -11,7 +11,8 @@ import type {
   ArtistsStackParamList,
   MainStackParamList,
 } from '../navigation/types';
-import { colors } from '../theme/colors';
+import type { ThemeColors } from '../theme/colors';
+import { useThemedStyles } from '../theme/useThemedStyles';
 import { formatTotalDuration } from '../utils/format';
 
 /**
@@ -31,6 +32,7 @@ type AlbumTracksScreenProps = {
 export function AlbumTracksScreen({ navigation, route }: AlbumTracksScreenProps) {
   const { albumId } = route.params;
   const { tracks, status } = useLibrary();
+  const styles = useThemedStyles(createStyles);
   const album = useMemo(() => getAlbumById(tracks, albumId), [tracks, albumId]);
   const albumTracks = useMemo(() => getAlbumTracks(tracks, albumId), [tracks, albumId]);
 
@@ -81,40 +83,42 @@ export function AlbumTracksScreen({ navigation, route }: AlbumTracksScreenProps)
   );
 }
 
-const styles = StyleSheet.create({
-  listContent: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 24,
-  },
-  hero: {
-    flexDirection: 'row',
-    marginBottom: 24,
-    gap: 16,
-  },
-  artwork: {
-    width: 124,
-  },
-  heroBody: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  heroTitle: {
-    color: colors.text,
-    fontSize: 20,
-    fontWeight: '700',
-    lineHeight: 25,
-  },
-  heroMeta: {
-    marginTop: 5,
-    color: colors.textMuted,
-    fontSize: 12,
-  },
-  empty: {
-    marginTop: 24,
-    color: colors.textSubtle,
-    fontSize: 13,
-    lineHeight: 19,
-    textAlign: 'center',
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    listContent: {
+      paddingHorizontal: 20,
+      paddingTop: 16,
+      paddingBottom: 24,
+    },
+    hero: {
+      flexDirection: 'row',
+      marginBottom: 24,
+      gap: 16,
+    },
+    artwork: {
+      width: 124,
+    },
+    heroBody: {
+      flex: 1,
+      justifyContent: 'flex-end',
+    },
+    heroTitle: {
+      color: colors.text,
+      fontSize: 20,
+      fontWeight: '700',
+      lineHeight: 25,
+    },
+    heroMeta: {
+      marginTop: 5,
+      color: colors.textMuted,
+      fontSize: 12,
+    },
+    empty: {
+      marginTop: 24,
+      color: colors.textSubtle,
+      fontSize: 13,
+      lineHeight: 19,
+      textAlign: 'center',
+    },
+  });
+}

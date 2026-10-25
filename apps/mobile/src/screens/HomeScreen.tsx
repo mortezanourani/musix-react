@@ -17,7 +17,9 @@ import { useLibrary } from '../library/LibraryContext';
 import { libraryEmptyMessage, libraryStatusMessage } from '../library/messages';
 import type { MainStackParamList } from '../navigation/types';
 import {MaterialCommunityIcons} from "@expo/vector-icons";
-import { colors } from "../theme/colors";
+import type { ThemeColors } from "../theme/colors";
+import { useTheme } from "../theme/ThemeContext";
+import { useThemedStyles } from "../theme/useThemedStyles";
 
 type HomeScreenProps = NativeStackScreenProps<MainStackParamList, 'HomeFeed'>;
 
@@ -30,6 +32,8 @@ const NO_BOOKS: readonly never[] = [];
 export function HomeScreen({ navigation }: HomeScreenProps) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const { tracks, status, error, updateLibrary } = useLibrary();
   const [query, setQuery] = useState('');
 
@@ -226,43 +230,45 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  header: {
-    paddingHorizontal: SHELF_PADDING,
-    marginBottom: 24,
-  },
-  heading: {
-    marginBottom: 14,
-    color: colors.text,
-    fontSize: 30,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  statusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 10,
-    gap: 10,
-  },
-  status: {
-    flex: 1,
-    color: colors.textMuted,
-    fontSize: 12,
-    lineHeight: 17,
-  },
-  retry: {
-    color: colors.primary,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  noResults: {
-    paddingHorizontal: SHELF_PADDING,
-    color: colors.textMuted,
-    fontSize: 13,
-    lineHeight: 19,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    screen: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    header: {
+      paddingHorizontal: SHELF_PADDING,
+      marginBottom: 24,
+    },
+    heading: {
+      marginBottom: 14,
+      color: colors.text,
+      fontSize: 30,
+      fontWeight: '700',
+      letterSpacing: 0.5,
+    },
+    statusRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 10,
+      gap: 10,
+    },
+    status: {
+      flex: 1,
+      color: colors.textMuted,
+      fontSize: 12,
+      lineHeight: 17,
+    },
+    retry: {
+      color: colors.primary,
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    noResults: {
+      paddingHorizontal: SHELF_PADDING,
+      color: colors.textMuted,
+      fontSize: 13,
+      lineHeight: 19,
+    },
+  });
+}
