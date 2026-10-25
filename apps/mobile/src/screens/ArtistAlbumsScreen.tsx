@@ -17,12 +17,11 @@ export function ArtistAlbumsScreen({ navigation, route }: ArtistAlbumsScreenProp
   const { tracks, status, audiobookAlbumIds } = useLibrary();
   const styles = useThemedStyles(createStyles);
   const albums = useMemo(() => getArtistAlbums(tracks, artistName, audiobookAlbumIds), [tracks, artistName, audiobookAlbumIds]);
-  const regularAlbums = useMemo(() => albums.filter((a) => !a.isAudiobook), [albums]);
-  const trackCount = regularAlbums.reduce((total, album) => total + album.trackCount, 0);
+  const trackCount = albums.reduce((total, album) => total + album.trackCount, 0);
 
   const statusMessage = libraryStatusMessage(
     status,
-    `${regularAlbums.length} ${regularAlbums.length === 1 ? 'album' : 'albums'} · ${trackCount} ${
+    `${albums.length} ${albums.length === 1 ? 'album' : 'albums'} · ${trackCount} ${
       trackCount === 1 ? 'track' : 'tracks'
     }`,
   );
@@ -33,7 +32,7 @@ export function ArtistAlbumsScreen({ navigation, route }: ArtistAlbumsScreenProp
       <Text style={styles.summary}>{statusMessage}</Text>
 
       <FlatList
-        data={regularAlbums}
+        data={albums}
         keyExtractor={(album) => album.id}
         numColumns={3}
         columnWrapperStyle={styles.columns}
@@ -46,6 +45,7 @@ export function ArtistAlbumsScreen({ navigation, route }: ArtistAlbumsScreenProp
             subtitle={`${item.trackCount} ${item.trackCount === 1 ? 'track' : 'tracks'}`}
             accessibilityLabel={`Open album ${item.title}`}
             onPress={() => navigation.navigate('AlbumTracks', { albumId: item.id })}
+            isAudiobook={item.isAudiobook}
           />
         )}
         ListEmptyComponent={<Text style={styles.empty}>{emptyMessage}</Text>}
