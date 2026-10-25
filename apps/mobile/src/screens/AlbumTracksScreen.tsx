@@ -2,6 +2,7 @@ import { getAlbumById, getAlbumTracks } from '@musix/core';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useLayoutEffect, useMemo } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ArtworkTile } from '../components/ArtworkTile';
 import { TrackRow } from '../components/TrackRow';
 import { useLibrary } from '../library/LibraryContext';
@@ -17,15 +18,29 @@ type AlbumTracksScreenProps = NativeStackScreenProps<MainStackParamList, 'AlbumT
 
 export function AlbumTracksScreen({ navigation, route }: AlbumTracksScreenProps) {
   const { albumId } = route.params;
-  const { tracks, status } = useLibrary();
+  const { tracks, status, audiobookAlbumIds, toggleAudiobookAlbum } = useLibrary();
   const { playTrack, currentTrack } = usePlayer();
   const styles = useThemedStyles(createStyles);
-  const album = useMemo(() => getAlbumById(tracks, albumId), [tracks, albumId]);
+  const album = useMemo(() => getAlbumById(tracks, albumId, audiobookAlbumIds), [tracks, albumId, audiobookAlbumIds]);
   const albumTracks = useMemo(() => getAlbumTracks(tracks, albumId), [tracks, albumId]);
+  const isAudiobook = album?.isAudiobook ?? false;
 
   useLayoutEffect(() => {
-    navigation.setOptions({ title: album?.title ?? 'Album' });
-  }, [navigation, album?.title]);
+    navigation.setOptions({
+      title: album?.title ?? 'Album',
+      headerRight: album
+        ? () => (
+            <MaterialCommunityIcons
+              name={isAudiobook ? 'book' : 'book-outline'}
+              size={26}
+              color={isAudiobook ? styles.activeTint : styles.tint}
+              style={{ marginRight: 16 }}
+              onPress={() => toggleAudiobookAlbum(albumId)}
+            />
+          )
+        : undefined,
+    });
+  }, [navigation, album?.title, albumId, isAudiobook, styles.activeTint, styles.tint, toggleAudiobookAlbum]);
 
   const emptyMessage = album
     ? libraryEmptyMessage(status, 'This album has no tracks.')
@@ -41,7 +56,7 @@ export function AlbumTracksScreen({ navigation, route }: AlbumTracksScreenProps)
         album ? (
           <View style={styles.hero}>
             <View style={styles.artwork}>
-              <ArtworkTile artworkUri={album.artworkUri} title={album.title} />
+              <ArtworkTile artworkUri={album.artworkUri} title={album.title} isAudiobook={isAudiobook} />
             </View>
             <View style={styles.heroBody}>
               <Text style={styles.heroTitle} numberOfLines={2}>
@@ -73,7 +88,10 @@ export function AlbumTracksScreen({ navigation, route }: AlbumTracksScreenProps)
 }
 
 function createStyles(colors: ThemeColors) {
-  return StyleSheet.create({
+  const tint = colors.textMuted;
+  const activeTint = colors.primary;
+
+  const styles = StyleSheet.create({
     listContent: {
       paddingHorizontal: 20,
       paddingTop: 16,
@@ -110,4 +128,6 @@ function createStyles(colors: ThemeColors) {
       textAlign: 'center',
     },
   });
+
+  return { ...styles, tint, activeTint };
 }

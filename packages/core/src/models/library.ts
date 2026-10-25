@@ -16,6 +16,8 @@ export interface AlbumSummary {
   artworkUri: string | null;
   trackCount: number;
   durationMs: number;
+  /** Whether this album is marked as an audiobook. */
+  isAudiobook: boolean;
 }
 
 /** An artist derived from the artist tags of the tracks in the library. */

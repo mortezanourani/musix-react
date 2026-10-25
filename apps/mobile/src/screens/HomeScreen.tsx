@@ -1,4 +1,5 @@
 import { buildAlbums, buildArtists, getTrackArtistName } from '@musix/core';
+import type { AlbumSummary } from '@musix/core';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useMemo, useState } from 'react';
 import {
@@ -27,15 +28,12 @@ type HomeScreenProps = NativeStackScreenProps<MainStackParamList, 'HomeFeed'>;
 /** How many tracks the Recently played shelf keeps around. */
 const RECENT_TRACK_LIMIT = 20;
 
-/** Books have no library model yet, so the shelf only renders its empty state. */
-const NO_BOOKS: readonly never[] = [];
-
 export function HomeScreen({ navigation }: HomeScreenProps) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
-  const { tracks, status, error, updateLibrary } = useLibrary();
+  const { tracks, status, error, updateLibrary, audiobookAlbumIds } = useLibrary();
   const { playTrack } = usePlayer();
   const [query, setQuery] = useState('');
 
@@ -50,7 +48,10 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
       [tracks],
   );
   const artists = useMemo(() => buildArtists(tracks), [tracks]);
-  const albums = useMemo(() => buildAlbums(tracks), [tracks]);
+  const albums = useMemo(() => buildAlbums(tracks, audiobookAlbumIds), [tracks, audiobookAlbumIds]);
+
+  const regularAlbums = useMemo(() => albums.filter((a) => !a.isAudiobook), [albums]);
+  const audiobooks = useMemo(() => albums.filter((a) => a.isAudiobook), [albums]);
 
   const visibleTracks = useMemo(() => {
     if (!searching) {
@@ -77,21 +78,34 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
 
   const visibleAlbums = useMemo(() => {
     if (!searching) {
-      return albums;
+      return regularAlbums;
     }
 
-    return albums.filter(
+    return regularAlbums.filter(
         (album) =>
             album.title.toLocaleLowerCase().includes(searchTerm) ||
             album.artist.toLocaleLowerCase().includes(searchTerm),
     );
-  }, [albums, searching, searchTerm]);
+  }, [regularAlbums, searching, searchTerm]);
+
+  const visibleAudiobooks = useMemo(() => {
+    if (!searching) {
+      return audiobooks;
+    }
+
+    return audiobooks.filter(
+        (album) =>
+            album.title.toLocaleLowerCase().includes(searchTerm) ||
+            album.artist.toLocaleLowerCase().includes(searchTerm),
+    );
+  }, [audiobooks, searching, searchTerm]);
 
   const noResults =
       searching &&
       visibleTracks.length === 0 &&
       visibleAlbums.length === 0 &&
-      visibleArtists.length === 0;
+      visibleArtists.length === 0 &&
+      visibleAudiobooks.length === 0;
 
   // Size the row for two and a half squares, then shrink each card by 10%.
   const cardWidth = ((width - SHELF_PADDING - SHELF_GAP * 2) / 3.5);
@@ -214,14 +228,26 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
                   />
               ) : null}
 
-              {!searching ? (
-                  <Shelf<never>
+              {visibleAudiobooks.length > 0 || !searching ? (
+                  <Shelf<AlbumSummary>
                       title="Books"
-                      data={NO_BOOKS}
-                      keyExtractor={() => 'book'}
+                      data={visibleAudiobooks}
+                      keyExtractor={(album) => album.id}
                       cardWidth={cardWidth}
-                      emptyMessage="Audiobooks and PDFs will appear here."
-                      renderItem={() => null}
+                      emptyMessage={libraryEmptyMessage(
+                          status,
+                          'Audiobooks and PDFs will appear here.',
+                      )}
+                      renderItem={({ item }) => (
+                          <MediaCard
+                              width={cardWidth}
+                              artworkUri={item.artworkUri}
+                              title={item.title}
+                              subtitle={item.artist}
+                              accessibilityLabel={`Open audiobook ${item.title} by ${item.artist}`}
+                              onPress={() => navigation.navigate('AlbumTracks', { albumId: item.id })}
+                          />
+                      )}
                   />
               ) : null}
             </>

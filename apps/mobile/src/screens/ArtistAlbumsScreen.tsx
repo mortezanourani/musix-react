@@ -14,14 +14,15 @@ type ArtistAlbumsScreenProps = NativeStackScreenProps<MainStackParamList, 'Artis
 
 export function ArtistAlbumsScreen({ navigation, route }: ArtistAlbumsScreenProps) {
   const { artistName } = route.params;
-  const { tracks, status } = useLibrary();
+  const { tracks, status, audiobookAlbumIds } = useLibrary();
   const styles = useThemedStyles(createStyles);
-  const albums = useMemo(() => getArtistAlbums(tracks, artistName), [tracks, artistName]);
-  const trackCount = albums.reduce((total, album) => total + album.trackCount, 0);
+  const albums = useMemo(() => getArtistAlbums(tracks, artistName, audiobookAlbumIds), [tracks, artistName, audiobookAlbumIds]);
+  const regularAlbums = useMemo(() => albums.filter((a) => !a.isAudiobook), [albums]);
+  const trackCount = regularAlbums.reduce((total, album) => total + album.trackCount, 0);
 
   const statusMessage = libraryStatusMessage(
     status,
-    `${albums.length} ${albums.length === 1 ? 'album' : 'albums'} · ${trackCount} ${
+    `${regularAlbums.length} ${regularAlbums.length === 1 ? 'album' : 'albums'} · ${trackCount} ${
       trackCount === 1 ? 'track' : 'tracks'
     }`,
   );
@@ -32,7 +33,7 @@ export function ArtistAlbumsScreen({ navigation, route }: ArtistAlbumsScreenProp
       <Text style={styles.summary}>{statusMessage}</Text>
 
       <FlatList
-        data={albums}
+        data={regularAlbums}
         keyExtractor={(album) => album.id}
         numColumns={3}
         columnWrapperStyle={styles.columns}
