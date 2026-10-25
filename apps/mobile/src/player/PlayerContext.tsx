@@ -1,4 +1,4 @@
-import { getTrackAlbumTitle, getTrackArtistName, type Track } from '@musix/core';
+import { getTrackAlbumTitle, getTrackArtistName, getAlbumId, type Track } from '@musix/core';
 import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import {
   createContext,
@@ -10,6 +10,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { useLibrary } from '../library/LibraryContext';
 
 type PlayerContextValue = {
   currentTrack: Track | null;
@@ -26,6 +27,8 @@ type PlayerContextValue = {
   togglePlayback: () => void;
   playNext: () => void;
   playPrevious: () => void;
+  seekForward: () => void;
+  seekBackward: () => void;
   seekTo: (seconds: number) => void;
 };
 
@@ -46,6 +49,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [currentIndex, setCurrentIndex] = useState(-1);
   const [isVisible, setIsVisible] = useState(false);
   const finishedTrackId = useRef<string | null>(null);
+  const { audiobookAlbumIds } = useLibrary();
 
   const currentTrack = currentIndex >= 0 ? queue[currentIndex] ?? null : null;
 
@@ -73,6 +77,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    const albumId = getAlbumId(currentTrack);
+    const isAudiobook = audiobookAlbumIds.has(albumId);
+
     try {
       player.setActiveForLockScreen(
         true,
@@ -82,7 +89,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           albumTitle: getTrackAlbumTitle(currentTrack),
           artworkUrl: currentTrack.artworkUri ?? undefined,
         },
-        { showSeekForward: true, showSeekBackward: true },
+        { showSeekForward: isAudiobook, showSeekBackward: isAudiobook },
       );
     } catch {
       // Lock screen controls are best-effort; playback itself is unaffected.
@@ -95,7 +102,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         // The player may already be released while switching tracks.
       }
     };
-  }, [currentTrack, player]);
+  }, [currentTrack, player, audiobookAlbumIds]);
 
   // Start every newly selected track; reopening the same track is handled by playTrack.
   useEffect(() => {
@@ -188,6 +195,20 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     [currentTrack?.durationMs, player],
   );
 
+  const seekForward = useCallback(() => {
+    if (!currentTrack) return;
+    const maxDuration =
+      player.duration > 0 ? player.duration : (currentTrack?.durationMs ?? 0) / 1000;
+    const target = Math.min(player.currentTime + 10, maxDuration);
+    void player.seekTo(target);
+  }, [currentTrack?.durationMs, player]);
+
+  const seekBackward = useCallback(() => {
+    if (!currentTrack) return;
+    const target = Math.max(player.currentTime - 10, 0);
+    void player.seekTo(target);
+  }, [player]);
+
   const playNext = useCallback(() => {
     setCurrentIndex((index) => (index < queue.length - 1 ? index + 1 : index));
   }, [queue.length]);
@@ -214,6 +235,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       togglePlayback,
       playNext,
       playPrevious,
+      seekForward,
+      seekBackward,
       seekTo,
     }),
     [
@@ -228,6 +251,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       togglePlayback,
       playNext,
       playPrevious,
+      seekForward,
+      seekBackward,
       seekTo,
     ],
   );
