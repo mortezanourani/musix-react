@@ -9,6 +9,7 @@ type CollectionTileProps = {
   subtitle?: string;
   accessibilityLabel?: string;
   onPress: () => void;
+  isAudiobook?: boolean;
 };
 
 /** A two-column album or artist tile: square art, then title and subtitle. */
@@ -18,6 +19,7 @@ export function CollectionTile({
   subtitle,
   accessibilityLabel,
   onPress,
+  isAudiobook = false,
 }: CollectionTileProps) {
   const styles = useThemedStyles(createStyles);
 
@@ -28,7 +30,7 @@ export function CollectionTile({
       onPress={onPress}
       style={({ pressed }) => [styles.tile, pressed && styles.pressed]}
     >
-      <ArtworkTile artworkUri={artworkUri} title={title} />
+      <ArtworkTile artworkUri={artworkUri} title={title} isAudiobook={isAudiobook} />
       <Text style={styles.title} numberOfLines={1}>
         {title}
       </Text>
