@@ -11,6 +11,13 @@ import {
   type ReactNode,
 } from 'react';
 import { useLibrary } from '../library/LibraryContext';
+import {
+  loadRecentlyPlayedTrackIds,
+  saveRecentlyPlayedTrackIds,
+} from './recentlyPlayedStorage';
+
+/** How many entries the listening history keeps. */
+const RECENT_HISTORY_LIMIT = 65;
 
 type PlayerContextValue = {
   currentTrack: Track | null;
@@ -18,6 +25,8 @@ type PlayerContextValue = {
   currentIndex: number;
   isPlaying: boolean;
   isVisible: boolean;
+  /** Track IDs in the order they were played, newest first. */
+  recentlyPlayedTrackIds: readonly string[];
   /** Opens the player modal and starts the track, optionally with a queue. */
   playTrack: (track: Track, queue?: readonly Track[]) => void;
   /** Reopens the full player modal without changing playback. */
@@ -48,10 +57,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [queue, setQueue] = useState<Track[]>([]);
   const [currentIndex, setCurrentIndex] = useState(-1);
   const [isVisible, setIsVisible] = useState(false);
+  const [recentlyPlayedTrackIds, setRecentlyPlayedTrackIds] = useState<string[]>([]);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   const finishedTrackId = useRef<string | null>(null);
   const { audiobookAlbumIds } = useLibrary();
 
   const currentTrack = currentIndex >= 0 ? queue[currentIndex] ?? null : null;
+  const currentTrackId = currentTrack?.id ?? null;
 
   // Changing the source recreates the native player, which loads the new file.
   const player = useAudioPlayer(currentTrack?.uri ?? null, { updateInterval: 250 });
@@ -131,6 +143,54 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       void player.seekTo(0);
     }
   }, [currentTrack, currentIndex, player, queue.length, status.didJustFinish]);
+
+  // Restore the history once; merge with tracks played while it was loading.
+  useEffect(() => {
+    let cancelled = false;
+
+    loadRecentlyPlayedTrackIds().then((stored) => {
+      if (cancelled) {
+        return;
+      }
+
+      setRecentlyPlayedTrackIds((current) => mergeRecentTrackIds(current, stored));
+      setHistoryLoaded(true);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Any track that becomes current has been played: a tap, the next/previous
+  // controls, auto-advance, or an audiobook chapter reached the same way.
+  useEffect(() => {
+    if (!currentTrackId) {
+      return;
+    }
+
+    setRecentlyPlayedTrackIds((previous) => {
+      if (previous[0] === currentTrackId) {
+        return previous;
+      }
+
+      return [
+        currentTrackId,
+        ...previous.filter((trackId) => trackId !== currentTrackId),
+      ].slice(0, RECENT_HISTORY_LIMIT);
+    });
+  }, [currentTrackId]);
+
+  // Saved only after hydration so the initial empty list cannot erase history.
+  useEffect(() => {
+    if (!historyLoaded) {
+      return;
+    }
+
+    void saveRecentlyPlayedTrackIds(recentlyPlayedTrackIds).catch(() => {
+      // History is best-effort; playback itself is unaffected.
+    });
+  }, [historyLoaded, recentlyPlayedTrackIds]);
 
   const playTrack = useCallback(
     (track: Track, nextQueue?: readonly Track[]) => {
@@ -229,6 +289,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       currentIndex,
       isPlaying: status.playing,
       isVisible,
+      recentlyPlayedTrackIds,
       playTrack,
       openPlayer,
       minimizePlayer,
@@ -245,6 +306,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       currentIndex,
       status.playing,
       isVisible,
+      recentlyPlayedTrackIds,
       playTrack,
       openPlayer,
       minimizePlayer,
@@ -275,6 +337,29 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       </PlayerProgressContext.Provider>
     </PlayerContext.Provider>
   );
+}
+
+function mergeRecentTrackIds(
+  current: readonly string[],
+  stored: readonly string[],
+): string[] {
+  const seen = new Set<string>();
+  const merged: string[] = [];
+
+  for (const trackId of [...current, ...stored]) {
+    if (seen.has(trackId)) {
+      continue;
+    }
+
+    seen.add(trackId);
+    merged.push(trackId);
+
+    if (merged.length >= RECENT_HISTORY_LIMIT) {
+      break;
+    }
+  }
+
+  return merged;
 }
 
 export function usePlayer(): PlayerContextValue {

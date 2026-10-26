@@ -1,5 +1,5 @@
 import { buildAlbums, buildArtists, getTrackArtistName } from '@musix/core';
-import type { AlbumSummary } from '@musix/core';
+import type { AlbumSummary, Track } from '@musix/core';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useMemo, useState } from 'react';
 import {
@@ -34,18 +34,25 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   const { tracks, status, error, updateLibrary, audiobookAlbumIds } = useLibrary();
-  const { playTrack } = usePlayer();
+  const { playTrack, recentlyPlayedTrackIds } = usePlayer();
   const [query, setQuery] = useState('');
 
   const searchTerm = query.trim().toLocaleLowerCase();
   const searching = searchTerm.length > 0;
 
+  const tracksById = useMemo(
+      () => new Map(tracks.map((track) => [track.id, track])),
+      [tracks],
+  );
+
+  // Real listening history, newest first, resolved against the current library.
   const recentTracks = useMemo(
       () =>
-          [...tracks]
-              .sort((a, b) => (b.modificationTime ?? 0) - (a.modificationTime ?? 0))
+          recentlyPlayedTrackIds
+              .map((trackId) => tracksById.get(trackId))
+              .filter((track): track is Track => track !== undefined)
               .slice(0, RECENT_TRACK_LIMIT),
-      [tracks],
+      [recentlyPlayedTrackIds, tracksById],
   );
   const artists = useMemo(() => buildArtists(tracks), [tracks]);
   const albums = useMemo(() => buildAlbums(tracks, audiobookAlbumIds), [tracks, audiobookAlbumIds]);
@@ -58,13 +65,12 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
       return recentTracks;
     }
 
-    return [...tracks]
+    return tracks
         .filter((track) =>
             [track.title, track.artist, track.albumArtist, track.album].some((value) =>
                 value?.toLocaleLowerCase().includes(searchTerm),
             ),
         )
-        .sort((a, b) => (b.modificationTime ?? 0) - (a.modificationTime ?? 0))
         .slice(0, RECENT_TRACK_LIMIT);
   }, [recentTracks, searching, searchTerm, tracks]);
 
@@ -166,7 +172,12 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
                       data={visibleTracks}
                       keyExtractor={(track) => track.id}
                       cardWidth={cardWidth}
-                      emptyMessage={libraryEmptyMessage(status, 'No tracks in your library yet.')}
+                      emptyMessage={libraryEmptyMessage(
+                          status,
+                          searching
+                              ? 'No tracks match your search.'
+                              : 'Tracks you play will appear here.',
+                      )}
                       renderItem={({ item }) => (
                           <MediaCard
                               width={cardWidth}
