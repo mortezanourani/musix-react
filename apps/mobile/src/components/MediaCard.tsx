@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { ThemeColors } from '../theme/colors';
 import { useThemedStyles } from '../theme/useThemedStyles';
-import { ArtworkTile } from './ArtworkTile';
+import { ArtworkTile, type ArtworkKind } from './ArtworkTile';
 
 type MediaCardProps = {
   artworkUri: string | null;
@@ -9,6 +9,8 @@ type MediaCardProps = {
   subtitle?: string;
   /** Width of the square artwork, in points. */
   width: number;
+  /** Which fallback thumbnail to show when the item has no artwork. */
+  kind?: ArtworkKind;
   accessibilityLabel?: string;
   onPress?: () => void;
 };
@@ -19,6 +21,7 @@ export function MediaCard({
   title,
   subtitle,
   width,
+  kind = 'album',
   accessibilityLabel,
   onPress,
 }: MediaCardProps) {
@@ -26,7 +29,12 @@ export function MediaCard({
 
   const content = (
     <>
-      <ArtworkTile artworkUri={artworkUri} title={title} />
+      <ArtworkTile
+        artworkUri={artworkUri}
+        title={title}
+        kind={kind}
+        iconSize={Math.round(width * 0.42)}
+      />
       <Text style={styles.title} numberOfLines={1}>
         {title}
       </Text>

@@ -45,7 +45,11 @@ export function AlbumTracksScreen({ navigation, route }: AlbumTracksScreenProps)
         album ? (
           <View style={styles.hero}>
             <View style={styles.artwork}>
-              <ArtworkTile artworkUri={album.artworkUri} title={album.title} isAudiobook={isAudiobook} />
+              <ArtworkTile
+                artworkUri={album.artworkUri}
+                title={album.title}
+                kind={isAudiobook ? 'audiobook' : 'album'}
+              />
             </View>
             <View style={styles.heroBody}>
               <Text style={styles.heroTitle} numberOfLines={2}>

@@ -183,32 +183,10 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
                               width={cardWidth}
                               artworkUri={item.artworkUri}
                               title={item.title}
+                              kind="track"
                               subtitle={getTrackArtistName(item)}
                               accessibilityLabel={`Play ${item.title} by ${getTrackArtistName(item)}`}
                               onPress={() => playTrack(item, visibleTracks)}
-                          />
-                      )}
-                  />
-              ) : null}
-
-              {visibleAlbums.length > 0 || !searching ? (
-                  <Shelf
-                      title="Albums"
-                      data={visibleAlbums}
-                      keyExtractor={(album) => album.id}
-                      cardWidth={cardWidth}
-                      emptyMessage={libraryEmptyMessage(
-                          status,
-                          'Albums from your library will appear here.',
-                      )}
-                      renderItem={({ item }) => (
-                          <MediaCard
-                              width={cardWidth}
-                              artworkUri={item.artworkUri}
-                              title={item.title}
-                              subtitle={item.artist}
-                              accessibilityLabel={`Open album ${item.title} by ${item.artist}`}
-                              onPress={() => navigation.navigate('AlbumTracks', { albumId: item.id })}
                           />
                       )}
                   />
@@ -229,11 +207,36 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
                               width={cardWidth}
                               artworkUri={item.artworkUri}
                               title={item.name}
+                              kind="artist"
                               subtitle={`${item.albumCount} ${item.albumCount === 1 ? 'album' : 'albums'}`}
                               accessibilityLabel={`Open albums by ${item.name}`}
                               onPress={() =>
                                   navigation.navigate('ArtistAlbums', { artistName: item.name })
                               }
+                          />
+                      )}
+                  />
+              ) : null}
+
+              {visibleAlbums.length > 0 || !searching ? (
+                  <Shelf
+                      title="Albums"
+                      data={visibleAlbums}
+                      keyExtractor={(album) => album.id}
+                      cardWidth={cardWidth}
+                      emptyMessage={libraryEmptyMessage(
+                          status,
+                          'Albums from your library will appear here.',
+                      )}
+                      renderItem={({ item }) => (
+                          <MediaCard
+                              width={cardWidth}
+                              artworkUri={item.artworkUri}
+                              title={item.title}
+                              kind="album"
+                              subtitle={item.artist}
+                              accessibilityLabel={`Open album ${item.title} by ${item.artist}`}
+                              onPress={() => navigation.navigate('AlbumTracks', { albumId: item.id })}
                           />
                       )}
                   />
@@ -256,6 +259,7 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
                               width={cardWidth}
                               artworkUri={item.artworkUri}
                               title={item.title}
+                              kind="audiobook"
                               subtitle={item.artist}
                               accessibilityLabel={`Open audiobook ${item.title} by ${item.artist}`}
                               onPress={() => navigation.navigate('AlbumTracks', { albumId: item.id })}

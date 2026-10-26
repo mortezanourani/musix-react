@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
-import { ArtworkTile } from './ArtworkTile';
+import { ArtworkTile, type ArtworkKind } from './ArtworkTile';
 import type { ThemeColors } from '../theme/colors';
 import { useThemedStyles } from '../theme/useThemedStyles';
 
@@ -9,7 +9,8 @@ type CollectionTileProps = {
   subtitle?: string;
   accessibilityLabel?: string;
   onPress: () => void;
-  isAudiobook?: boolean;
+  /** Which fallback thumbnail to show when the item has no artwork. */
+  kind?: ArtworkKind;
 };
 
 /** A two-column album or artist tile: square art, then title and subtitle. */
@@ -19,7 +20,7 @@ export function CollectionTile({
   subtitle,
   accessibilityLabel,
   onPress,
-  isAudiobook = false,
+  kind = 'album',
 }: CollectionTileProps) {
   const styles = useThemedStyles(createStyles);
 
@@ -30,7 +31,7 @@ export function CollectionTile({
       onPress={onPress}
       style={({ pressed }) => [styles.tile, pressed && styles.pressed]}
     >
-      <ArtworkTile artworkUri={artworkUri} title={title} isAudiobook={isAudiobook} />
+      <ArtworkTile artworkUri={artworkUri} title={title} kind={kind} />
       <Text style={styles.title} numberOfLines={1}>
         {title}
       </Text>

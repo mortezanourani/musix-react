@@ -45,7 +45,7 @@ export function ArtistAlbumsScreen({ navigation, route }: ArtistAlbumsScreenProp
             subtitle={`${item.trackCount} ${item.trackCount === 1 ? 'track' : 'tracks'}`}
             accessibilityLabel={`Open album ${item.title}`}
             onPress={() => navigation.navigate('AlbumTracks', { albumId: item.id })}
-            isAudiobook={item.isAudiobook}
+            kind={item.isAudiobook ? 'audiobook' : 'album'}
           />
         )}
         ListEmptyComponent={<Text style={styles.empty}>{emptyMessage}</Text>}
