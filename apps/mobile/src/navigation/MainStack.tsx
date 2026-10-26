@@ -5,6 +5,7 @@ import type { MainStackParamList } from './types';
 import { AlbumTracksScreen } from '../screens/AlbumTracksScreen';
 import { ArtistAlbumsScreen } from '../screens/ArtistAlbumsScreen';
 import { HomeScreen } from '../screens/HomeScreen';
+import { ManageAudiobooksScreen } from '../screens/ManageAudiobooksScreen';
 import { useTheme } from '../theme/ThemeContext';
 import {SettingsScreen} from "../screens/SettingsScreen";
 
@@ -42,6 +43,11 @@ export function MainStack() {
                 options={({ route }) => ({ title: route.params.artistName })}
             />
             <Stack.Screen name="AlbumTracks" component={AlbumTracksScreen} />
+            <Stack.Screen
+                name="ManageAudiobooks"
+                component={ManageAudiobooksScreen}
+                options={{ title: 'Manage Audiobooks' }}
+            />
         </Stack.Navigator>
     );
 }
