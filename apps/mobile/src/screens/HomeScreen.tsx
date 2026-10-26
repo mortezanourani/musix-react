@@ -245,8 +245,8 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
                       data={visibleAudiobooks}
                       keyExtractor={(album) => album.id}
                       cardWidth={cardWidth}
-                      actionLabel="Edit"
-                      onActionPress={() => navigation.navigate('ManageAudiobooks')}
+                      // actionLabel="Edit"
+                      // onActionPress={() => navigation.navigate('ManageAudiobooks')}
                       emptyMessage={libraryEmptyMessage(
                           status,
                           'Audiobooks and PDFs will appear here.',
