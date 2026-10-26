@@ -323,7 +323,6 @@ function AlbumChoiceRow({ album, checked, onToggle }: AlbumChoiceRowProps) {
           title={album.title}
           borderRadius={8}
           initialsFontSize={16}
-          isAudiobook={checked}
         />
       </View>
 
