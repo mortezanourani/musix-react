@@ -61,8 +61,9 @@ function MiniPlayerBar() {
           <ArtworkTile
             artworkUri={currentTrack.artworkUri}
             title={currentTrack.title}
+            kind="track"
             borderRadius={8}
-            initialsFontSize={15}
+            iconSize={24}
           />
 
           <Pressable

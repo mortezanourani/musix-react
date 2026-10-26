@@ -322,7 +322,8 @@ function AlbumChoiceRow({ album, checked, onToggle }: AlbumChoiceRowProps) {
           artworkUri={album.artworkUri}
           title={album.title}
           borderRadius={8}
-          initialsFontSize={16}
+          iconSize={24}
+          kind={checked ? 'audiobook' : 'album'}
         />
       </View>
 

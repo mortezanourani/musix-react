@@ -110,7 +110,9 @@ export function PlayerModal() {
             <ArtworkTile
               artworkUri={currentTrack.artworkUri}
               title={currentTrack.title}
+              kind={isAudiobook ? 'audiobook' : 'track'}
               borderRadius={24}
+              iconSize={Math.round(artworkSize * 0.34)}
             />
           </View>
 
