@@ -21,7 +21,8 @@ type LibraryContextValue = {
   error: string | null;
   updateLibrary: () => Promise<void>;
   audiobookAlbumIds: ReadonlySet<string>;
-  toggleAudiobookAlbum: (albumId: string) => Promise<void>;
+  /** Replaces the set of albums shown under Books. Reverts when saving fails. */
+  setAudiobookAlbums: (albumIds: ReadonlySet<string>) => Promise<void>;
 };
 
 const LibraryContext = createContext<LibraryContextValue | null>(null);
@@ -31,7 +32,13 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<ScanStatus>('restoring');
   const [error, setError] = useState<string | null>(null);
   const [audiobookAlbumIds, setAudiobookAlbumIds] = useState<Set<string>>(new Set());
+  const audiobookAlbumIdsRef = useRef<ReadonlySet<string>>(new Set());
   const updateStarted = useRef(false);
+
+  const applyAudiobookAlbumIds = useCallback((albumIds: ReadonlySet<string>) => {
+    audiobookAlbumIdsRef.current = albumIds;
+    setAudiobookAlbumIds(albumIds instanceof Set ? albumIds : new Set(albumIds));
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -41,7 +48,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      setAudiobookAlbumIds(audiobookIds);
+      applyAudiobookAlbumIds(audiobookIds);
 
       if (stored.length > 0) {
         setTracks(stored);
@@ -54,7 +61,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [applyAudiobookAlbumIds]);
 
   const updateLibrary = useCallback(async () => {
     updateStarted.current = true;
@@ -81,23 +88,26 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const toggleAudiobookAlbum = useCallback(async (albumId: string) => {
-    setAudiobookAlbumIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(albumId)) {
-        next.delete(albumId);
-      } else {
-        next.add(albumId);
+  const setAudiobookAlbums = useCallback(
+    async (albumIds: ReadonlySet<string>) => {
+      const previous = audiobookAlbumIdsRef.current;
+      const next = new Set(albumIds);
+
+      applyAudiobookAlbumIds(next);
+
+      try {
+        await saveAudiobookAlbumIds(next);
+      } catch (cause) {
+        applyAudiobookAlbumIds(previous);
+        throw cause;
       }
-      // Fire and forget persistence
-      saveAudiobookAlbumIds(next);
-      return next;
-    });
-  }, []);
+    },
+    [applyAudiobookAlbumIds],
+  );
 
   const value = useMemo(
-    () => ({ tracks, status, error, updateLibrary, audiobookAlbumIds, toggleAudiobookAlbum }),
-    [tracks, status, error, updateLibrary, audiobookAlbumIds, toggleAudiobookAlbum],
+    () => ({ tracks, status, error, updateLibrary, audiobookAlbumIds, setAudiobookAlbums }),
+    [tracks, status, error, updateLibrary, audiobookAlbumIds, setAudiobookAlbums],
   );
 
   return <LibraryContext.Provider value={value}>{children}</LibraryContext.Provider>;

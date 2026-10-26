@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { buildAlbums } from '@musix/core';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCallback, type ComponentProps } from 'react';
+import { useCallback, useMemo, type ComponentProps } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { ThemeColors } from '../theme/colors';
 import { useTheme, type ThemeMode } from '../theme/ThemeContext';
@@ -39,13 +40,23 @@ const THEME_OPTIONS: readonly ThemeOption[] = [
 ];
 
 export function SettingsScreen({ navigation }: SettingsScreenProps) {
-  const { tracks, status, error, updateLibrary } = useLibrary();
+  const { tracks, status, error, updateLibrary, audiobookAlbumIds } = useLibrary();
   const { colors, mode, setMode } = useTheme();
   const styles = useThemedStyles(createStyles);
 
   const handleLibraryUpdate = useCallback(async () => {
     await updateLibrary();
   }, [updateLibrary]);
+
+  const albumCounts = useMemo(() => {
+    const albums = buildAlbums(tracks, audiobookAlbumIds);
+    const books = albums.reduce(
+      (total, album) => total + (album.isAudiobook ? 1 : 0),
+      0,
+    );
+
+    return { books, music: albums.length - books };
+  }, [tracks, audiobookAlbumIds]);
 
   return (
     <ScrollView
@@ -99,19 +110,49 @@ export function SettingsScreen({ navigation }: SettingsScreenProps) {
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Library</Text>
-        <Pressable
-          style={({ pressed }) => [styles.libraryOption, pressed && styles.optionPressed]}
-          onPress={handleLibraryUpdate}
-          disabled={status === 'scanning'}
-        >
-          <View style={styles.optionContent}>
-            <MaterialCommunityIcons name="folder-sync" size={24} color={colors.text} />
-            <Text style={styles.optionText}>Update Library</Text>
-          </View>
-          {status === 'scanning' ? (
-            <MaterialCommunityIcons name="loading" size={24} color={colors.textMuted} />
-          ) : null}
-        </Pressable>
+
+        <View style={styles.libraryGroup}>
+          <Pressable
+            style={({ pressed }) => [styles.libraryOption, pressed && styles.optionPressed]}
+            onPress={handleLibraryUpdate}
+            disabled={status === 'scanning'}
+          >
+            <View style={styles.optionContent}>
+              <MaterialCommunityIcons name="folder-sync" size={24} color={colors.text} />
+              <Text style={styles.optionText}>Update Library</Text>
+            </View>
+            {status === 'scanning' ? (
+              <MaterialCommunityIcons name="loading" size={24} color={colors.textMuted} />
+            ) : null}
+          </Pressable>
+
+          <Pressable
+            style={({ pressed }) => [styles.libraryOption, pressed && styles.optionPressed]}
+            onPress={() => navigation.navigate('ManageAudiobooks')}
+            accessibilityRole="button"
+            accessibilityLabel="Manage audiobooks"
+          >
+            <View style={styles.optionContent}>
+              <MaterialCommunityIcons
+                name="book-open-variant"
+                size={24}
+                color={colors.text}
+              />
+              <View style={styles.optionTextGroup}>
+                <Text style={styles.optionText}>Manage Audiobooks</Text>
+                <Text style={styles.optionDescription}>
+                  {albumCounts.books} {albumCounts.books === 1 ? 'book' : 'books'} ·{' '}
+                  {albumCounts.music} {albumCounts.music === 1 ? 'album' : 'albums'}
+                </Text>
+              </View>
+            </View>
+            <MaterialCommunityIcons
+              name="chevron-right"
+              size={24}
+              color={colors.textSubtle}
+            />
+          </Pressable>
+        </View>
 
         {status === 'error' && error ? (
           <View style={styles.statusContainer}>
@@ -169,6 +210,9 @@ function createStyles(colors: ThemeColors) {
     },
     optionPressed: {
       opacity: 0.7,
+    },
+    libraryGroup: {
+      gap: 12,
     },
     libraryOption: {
       flexDirection: 'row',
