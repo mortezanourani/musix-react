@@ -58,12 +58,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [isVisible, setIsVisible] = useState(false);
   const [recentlyPlayedTrackIds, setRecentlyPlayedTrackIds] = useState<string[]>([]);
   const [historyLoaded, setHistoryLoaded] = useState(false);
-  const finishedTrackId = useRef<string | null>(null);
+  const finishHandled = useRef(false);
   const currentTrack = currentIndex >= 0 ? queue[currentIndex] ?? null : null;
   const currentTrackId = currentTrack?.id ?? null;
 
-  // Changing the source recreates the native player, which loads the new file.
-  const player = useAudioPlayer(currentTrack?.uri ?? null, { updateInterval: 250 });
+  // Keep one native player for the whole queue so lock-screen controls have one owner.
+  const player = useAudioPlayer(null, { updateInterval: 250 });
   const status = useAudioPlayerStatus(player);
 
   useEffect(() => {
@@ -102,38 +102,41 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     } catch {
       // Lock screen controls are best-effort; playback itself is unaffected.
     }
+  }, [currentTrack, player]);
 
+  // Replace the source on the shared player and start each newly selected track.
+  useEffect(() => {
+    if (currentTrack) {
+      player.replace(currentTrack.uri);
+      player.play();
+    }
+  }, [currentTrack?.id, currentTrack?.uri, player]);
+
+  useEffect(() => {
     return () => {
       try {
         player.clearLockScreenControls();
       } catch {
-        // The player may already be released while switching tracks.
+        // The player may already be released while the provider unmounts.
       }
     };
-  }, [currentTrack, player]);
-
-  // Start every newly selected track; reopening the same track is handled by playTrack.
-  useEffect(() => {
-    if (currentTrack) {
-      player.play();
-    }
-  }, [currentTrack, player]);
+  }, [player]);
 
   // Advance through the queue when a track reaches its end.
   useEffect(() => {
     if (!status.didJustFinish) {
-      finishedTrackId.current = null;
+      finishHandled.current = false;
       return;
     }
 
-    if (!currentTrack || finishedTrackId.current === currentTrack.id) {
+    if (!currentTrack || finishHandled.current) {
       return;
     }
 
-    finishedTrackId.current = currentTrack.id;
+    finishHandled.current = true;
 
     if (currentIndex < queue.length - 1) {
-      setCurrentIndex(currentIndex + 1);
+      setCurrentIndex((index) => (index < queue.length - 1 ? index + 1 : index));
     } else {
       player.pause();
       void player.seekTo(0);
