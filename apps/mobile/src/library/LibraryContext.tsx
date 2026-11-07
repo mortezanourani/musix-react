@@ -29,27 +29,6 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const updateStarted = useRef(false);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    loadStoredLibrary().then((stored) => {
-      if (cancelled || updateStarted.current) {
-        return;
-      }
-
-      if (stored.length > 0) {
-        setTracks(stored);
-        setStatus('ready');
-      } else {
-        setStatus('idle');
-      }
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   const updateLibrary = useCallback(async () => {
     updateStarted.current = true;
     setStatus('scanning');
@@ -74,6 +53,29 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       setStatus('error');
     }
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    loadStoredLibrary().then((stored) => {
+      if (cancelled || updateStarted.current) {
+        return;
+      }
+
+      if (stored.length > 0) {
+        setTracks(stored);
+        setStatus('ready');
+      } else {
+        setStatus('idle');
+      }
+
+      void updateLibrary();
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [updateLibrary]);
 
   const value = useMemo(
     () => ({ tracks, status, error, updateLibrary }),
