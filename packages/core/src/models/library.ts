@@ -27,5 +27,6 @@ export interface ArtistSummary {
   /** Cover art borrowed from one of the artist's albums. */
   artworkUri: string | null;
   albumCount: number;
+  audiobookCount: number;
   trackCount: number;
 }

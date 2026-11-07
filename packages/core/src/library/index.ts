@@ -41,20 +41,38 @@ export function splitArtists(value: string | null | undefined): string[] {
 
 /** The artist used for album grouping: artist tag first, then album artist. */
 export function getTrackArtistName(track: Track): string {
-  return normalizeTag(track.artist) ?? normalizeTag(track.albumArtist) ?? UNKNOWN_ARTIST;
+  return (
+    normalizeTag(track.artist) ??
+    normalizeTag(track.albumArtist) ??
+    (getTrackMediaType(track) === 'audiobook' ? normalizeTag(track.author) : null) ??
+    UNKNOWN_ARTIST
+  );
 }
 
 /** Every artist a track belongs to, used to populate the Artists page. */
 export function getTrackArtistNames(track: Track): string[] {
   const artists = splitArtists(track.artist);
-
-  if (artists.length > 0) {
-    return artists;
-  }
+  const seen = new Set(artists.map((name) => name.toLocaleLowerCase()));
 
   const albumArtists = splitArtists(track.albumArtist);
+  const authors =
+    getTrackMediaType(track) === 'audiobook' ? splitArtists(track.author) : [];
 
-  return albumArtists.length > 0 ? albumArtists : [UNKNOWN_ARTIST];
+  for (const name of [...albumArtists, ...authors]) {
+    const key = name.toLocaleLowerCase();
+
+    if (!seen.has(key)) {
+      seen.add(key);
+      artists.push(name);
+    }
+  }
+
+  return artists.length > 0 ? artists : [UNKNOWN_ARTIST];
+}
+
+/** Returns the media category, treating pre-category cached tracks as music. */
+export function getTrackMediaType(track: Track): Track['mediaType'] {
+  return track.mediaType === 'audiobook' ? 'audiobook' : 'music';
 }
 
 /** Album title shown for a track, with a fallback for untagged files. */
@@ -69,12 +87,22 @@ export function getTrackAlbumTitle(track: Track): string {
 export function getAlbumId(track: Track): string {
   const album = getTrackAlbumTitle(track).toLocaleLowerCase();
   const artist = getTrackArtistName(track).toLocaleLowerCase();
+  const mediaType = getTrackMediaType(track);
 
-  return `${encodeURIComponent(artist)}::${encodeURIComponent(album)}`;
+  return `${mediaType}::${encodeURIComponent(artist)}::${encodeURIComponent(album)}`;
 }
 
 /** Builds the album list shown on the Albums page. */
-export function buildAlbums(tracks: readonly Track[], audiobookAlbumIds: ReadonlySet<string> = new Set()): AlbumSummary[] {
+export function buildAlbums(tracks: readonly Track[]): AlbumSummary[] {
+  return buildCollections(tracks.filter((track) => getTrackMediaType(track) === 'music'));
+}
+
+/** Builds the audiobook list shown on the Books shelf. */
+export function buildAudiobooks(tracks: readonly Track[]): AlbumSummary[] {
+  return buildCollections(tracks.filter((track) => getTrackMediaType(track) === 'audiobook'));
+}
+
+function buildCollections(tracks: readonly Track[]): AlbumSummary[] {
   const albums = new Map<string, Omit<AlbumSummary, 'id'>>();
 
   for (const track of tracks) {
@@ -94,11 +122,11 @@ export function buildAlbums(tracks: readonly Track[], audiobookAlbumIds: Readonl
       artworkUri: track.artworkUri,
       trackCount: 1,
       durationMs: track.durationMs,
-      isAudiobook: false,
+      isAudiobook: getTrackMediaType(track) === 'audiobook',
     });
   }
 
-  return Array.from(albums, ([id, album]) => ({ id, ...album, isAudiobook: audiobookAlbumIds.has(id) })).sort((a, b) => {
+  return Array.from(albums, ([id, album]) => ({ id, ...album })).sort((a, b) => {
     const unknownOrder = compareUnknownLast(a.title, b.title, UNKNOWN_ALBUM);
 
     return unknownOrder !== 0
@@ -111,7 +139,13 @@ export function buildAlbums(tracks: readonly Track[], audiobookAlbumIds: Readonl
 export function buildArtists(tracks: readonly Track[]): ArtistSummary[] {
   const artists = new Map<
     string,
-    { name: string; artworkUri: string | null; trackCount: number; albumIds: Set<string> }
+    {
+      name: string;
+      artworkUri: string | null;
+      trackCount: number;
+      albumIds: Set<string>;
+      audiobookIds: Set<string>;
+    }
   >();
 
   for (const track of tracks) {
@@ -120,29 +154,40 @@ export function buildArtists(tracks: readonly Track[]): ArtistSummary[] {
       let artist = artists.get(key);
 
       if (!artist) {
-        artist = { name, artworkUri: null, trackCount: 0, albumIds: new Set() };
+        artist = {
+          name,
+          artworkUri: null,
+          trackCount: 0,
+          albumIds: new Set(),
+          audiobookIds: new Set(),
+        };
         artists.set(key, artist);
       }
 
       artist.trackCount += 1;
       artist.artworkUri ??= track.artworkUri;
-      artist.albumIds.add(getAlbumId(track));
+      if (getTrackMediaType(track) === 'audiobook') {
+        artist.audiobookIds.add(getAlbumId(track));
+      } else {
+        artist.albumIds.add(getAlbumId(track));
+      }
     }
   }
 
   return Array.from(artists.values())
-    .map(({ name, artworkUri, trackCount, albumIds }) => ({
+    .map(({ name, artworkUri, trackCount, albumIds, audiobookIds }) => ({
       name,
       artworkUri,
       trackCount,
       albumCount: albumIds.size,
+      audiobookCount: audiobookIds.size,
     }))
     .sort((a, b) => compareUnknownLast(a.name, b.name, UNKNOWN_ARTIST));
 }
 
 /** Finds one album by its id. */
-export function getAlbumById(tracks: readonly Track[], albumId: string, audiobookAlbumIds: ReadonlySet<string> = new Set()): AlbumSummary | null {
-  return buildAlbums(tracks, audiobookAlbumIds).find((album) => album.id === albumId) ?? null;
+export function getAlbumById(tracks: readonly Track[], albumId: string): AlbumSummary | null {
+  return [...buildAlbums(tracks), ...buildAudiobooks(tracks)].find((album) => album.id === albumId) ?? null;
 }
 
 /** All tracks in an album, in track-number order. */
@@ -157,14 +202,13 @@ export function getAlbumTracks(tracks: readonly Track[], albumId: string): Track
 }
 
 /** Albums that contain at least one track by the given artist. */
-export function getArtistAlbums(tracks: readonly Track[], artistName: string, audiobookAlbumIds: ReadonlySet<string> = new Set()): AlbumSummary[] {
+export function getArtistAlbums(tracks: readonly Track[], artistName: string): AlbumSummary[] {
   const key = artistName.toLocaleLowerCase();
 
-  return buildAlbums(
+  return buildCollections(
     tracks.filter((track) =>
       getTrackArtistNames(track).some((name) => name.toLocaleLowerCase() === key),
     ),
-    audiobookAlbumIds,
   );
 }
 

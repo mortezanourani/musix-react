@@ -1,15 +1,10 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { buildAlbums } from '@musix/core';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCallback, useMemo, type ComponentProps } from 'react';
+import { useCallback, type ComponentProps } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { ThemeColors } from '../theme/colors';
 import { useTheme, type ThemeMode } from '../theme/ThemeContext';
 import { useThemedStyles } from '../theme/useThemedStyles';
-import type { MainStackParamList } from '../navigation/types';
 import { useLibrary } from '../library/LibraryContext';
-
-type SettingsScreenProps = NativeStackScreenProps<MainStackParamList, 'Settings'>;
 
 type ThemeOption = {
   mode: ThemeMode;
@@ -39,24 +34,14 @@ const THEME_OPTIONS: readonly ThemeOption[] = [
   },
 ];
 
-export function SettingsScreen({ navigation }: SettingsScreenProps) {
-  const { tracks, status, error, updateLibrary, audiobookAlbumIds } = useLibrary();
+export function SettingsScreen() {
+  const { tracks, status, error, updateLibrary } = useLibrary();
   const { colors, mode, setMode } = useTheme();
   const styles = useThemedStyles(createStyles);
 
   const handleLibraryUpdate = useCallback(async () => {
     await updateLibrary();
   }, [updateLibrary]);
-
-  const albumCounts = useMemo(() => {
-    const albums = buildAlbums(tracks, audiobookAlbumIds);
-    const books = albums.reduce(
-      (total, album) => total + (album.isAudiobook ? 1 : 0),
-      0,
-    );
-
-    return { books, music: albums.length - books };
-  }, [tracks, audiobookAlbumIds]);
 
   return (
     <ScrollView
@@ -124,33 +109,6 @@ export function SettingsScreen({ navigation }: SettingsScreenProps) {
             {status === 'scanning' ? (
               <MaterialCommunityIcons name="loading" size={24} color={colors.textMuted} />
             ) : null}
-          </Pressable>
-
-          <Pressable
-            style={({ pressed }) => [styles.libraryOption, pressed && styles.optionPressed]}
-            onPress={() => navigation.navigate('ManageAudiobooks')}
-            accessibilityRole="button"
-            accessibilityLabel="Manage audiobooks"
-          >
-            <View style={styles.optionContent}>
-              <MaterialCommunityIcons
-                name="book-open-variant"
-                size={24}
-                color={colors.text}
-              />
-              <View style={styles.optionTextGroup}>
-                <Text style={styles.optionText}>Manage Audiobooks</Text>
-                <Text style={styles.optionDescription}>
-                  {albumCounts.books} {albumCounts.books === 1 ? 'book' : 'books'} ·{' '}
-                  {albumCounts.music} {albumCounts.music === 1 ? 'album' : 'albums'}
-                </Text>
-              </View>
-            </View>
-            <MaterialCommunityIcons
-              name="chevron-right"
-              size={24}
-              color={colors.textSubtle}
-            />
           </Pressable>
         </View>
 

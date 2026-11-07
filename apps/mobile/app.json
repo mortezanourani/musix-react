@@ -35,7 +35,7 @@
       [
         "expo-media-library",
         {
-          "photosPermission": "Allow musix to read the audio files in your Music directory.",
+          "photosPermission": "Allow musix to read audio files in your Music and Audiobooks directories.",
           "savePhotosPermission": "Allow musix to save audio files.",
           "granularPermissions": [
             "audio"

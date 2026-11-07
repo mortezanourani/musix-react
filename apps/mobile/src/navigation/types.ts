@@ -3,5 +3,4 @@ export type MainStackParamList = {
   Settings: undefined;
   ArtistAlbums: { artistName: string };
   AlbumTracks: { albumId: string };
-  ManageAudiobooks: undefined;
 };

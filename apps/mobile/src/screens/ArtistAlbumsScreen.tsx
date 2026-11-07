@@ -14,16 +14,18 @@ type ArtistAlbumsScreenProps = NativeStackScreenProps<MainStackParamList, 'Artis
 
 export function ArtistAlbumsScreen({ navigation, route }: ArtistAlbumsScreenProps) {
   const { artistName } = route.params;
-  const { tracks, status, audiobookAlbumIds } = useLibrary();
+  const { tracks, status } = useLibrary();
   const styles = useThemedStyles(createStyles);
-  const albums = useMemo(() => getArtistAlbums(tracks, artistName, audiobookAlbumIds), [tracks, artistName, audiobookAlbumIds]);
+  const albums = useMemo(() => getArtistAlbums(tracks, artistName), [tracks, artistName]);
   const trackCount = albums.reduce((total, album) => total + album.trackCount, 0);
+  const audiobookCount = albums.filter((album) => album.isAudiobook).length;
+  const albumCount = albums.length - audiobookCount;
 
   const statusMessage = libraryStatusMessage(
     status,
-    `${albums.length} ${albums.length === 1 ? 'album' : 'albums'} · ${trackCount} ${
-      trackCount === 1 ? 'track' : 'tracks'
-    }`,
+    `${albumCount} ${albumCount === 1 ? 'album' : 'albums'} · ${audiobookCount} ${
+      audiobookCount === 1 ? 'book' : 'books'
+    } · ${trackCount} ${trackCount === 1 ? 'track' : 'tracks'}`,
   );
   const emptyMessage = libraryEmptyMessage(status, 'No albums found for this artist.');
 

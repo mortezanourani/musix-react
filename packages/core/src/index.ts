@@ -3,6 +3,7 @@ export type { AlbumSummary, ArtistSummary } from './models/library';
 export { UNKNOWN_ALBUM, UNKNOWN_ARTIST } from './models/library';
 export {
   buildAlbums,
+  buildAudiobooks,
   buildArtists,
   getAlbumById,
   getAlbumId,
@@ -11,5 +12,6 @@ export {
   getTrackAlbumTitle,
   getTrackArtistName,
   getTrackArtistNames,
+  getTrackMediaType,
   splitArtists,
 } from './library';
