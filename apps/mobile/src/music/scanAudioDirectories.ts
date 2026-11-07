@@ -4,8 +4,10 @@ import { readTrackMetadata, type TrackMetadata } from './readTrackMetadata';
 
 const PAGE_SIZE = 500;
 
-/** Matches `/Music/` on any volume (internal storage or SD card). */
-const MUSIC_FOLDER_PATTERN = /(^|\/)Music(\/|$)/i;
+const LIBRARY_DIRECTORIES = [
+  { name: 'Music', mediaType: 'music' as const },
+  { name: 'Audiobooks', mediaType: 'audiobook' as const },
+];
 
 export class MusicPermissionError extends Error {
   constructor() {
@@ -17,10 +19,10 @@ export class MusicPermissionError extends Error {
 }
 
 /**
- * Reads every audio asset known to the device's media store, keeps the ones
- * stored inside the Music directory, and enriches them with embedded tags.
+ * Reads audio files from the device's Music and Audiobooks directories and
+ * enriches them with embedded tags.
  */
-export async function scanMusicDirectory(): Promise<Track[]> {
+export async function scanAudioDirectories(): Promise<Track[]> {
   const permission = await MediaLibrary.requestPermissionsAsync(false, ['audio']);
 
   if (!permission.granted) {
@@ -28,9 +30,10 @@ export async function scanMusicDirectory(): Promise<Track[]> {
   }
 
   const assets = await getAllAudioAssets();
-  const tracks = assets
-    .filter((asset) => MUSIC_FOLDER_PATTERN.test(decodeURIComponent(asset.uri)))
-    .map(toTrack);
+  const tracks = assets.flatMap((asset) => {
+    const directory = directoryFromUri(asset.uri);
+    return directory ? [toTrack(asset, directory)] : [];
+  });
 
   const metadata = await readTrackMetadata(
     tracks.map((track) => track.uri),
@@ -62,16 +65,21 @@ async function getAllAudioAssets(): Promise<MediaLibrary.Asset[]> {
   }
 }
 
-function toTrack(asset: MediaLibrary.Asset): Track {
+function toTrack(
+  asset: MediaLibrary.Asset,
+  directory: (typeof LIBRARY_DIRECTORIES)[number],
+): Track {
   return {
     id: asset.id,
+    mediaType: directory.mediaType,
     filename: asset.filename,
     title: titleFromFilename(asset.filename),
     artist: null,
+    author: null,
     albumArtist: null,
     album: null,
     trackNumber: null,
-    folder: folderFromUri(asset.uri),
+    folder: folderFromUri(asset.uri, directory.name),
     uri: asset.uri,
     artworkUri: null,
     durationMs: Number.isFinite(asset.duration) ? Math.round(asset.duration * 1000) : 0,
@@ -88,6 +96,7 @@ function applyMetadata(track: Track, metadata: TrackMetadata | undefined): Track
     ...track,
     title: metadata.title ?? track.title,
     artist: metadata.artist,
+    author: metadata.author,
     albumArtist: metadata.albumArtist,
     album: metadata.album,
     trackNumber: metadata.trackNumber,
@@ -99,17 +108,22 @@ function titleFromFilename(filename: string): string {
   return filename.replace(/\.[^.]+$/, '');
 }
 
-function folderFromUri(uri: string): string {
+function directoryFromUri(uri: string): (typeof LIBRARY_DIRECTORIES)[number] | null {
   const path = decodeURIComponent(uri);
-  const marker = '/music/';
+  return LIBRARY_DIRECTORIES.find(({ name }) => new RegExp(`(^|/)${name}(/|$)`, 'i').test(path)) ?? null;
+}
+
+function folderFromUri(uri: string, directoryName: string): string {
+  const path = decodeURIComponent(uri);
+  const marker = `/${directoryName.toLowerCase()}/`;
   const index = path.toLowerCase().lastIndexOf(marker);
 
   if (index === -1) {
-    return 'Music';
+    return directoryName;
   }
 
   const relative = path.slice(index + marker.length);
   const folderEnd = relative.lastIndexOf('/');
 
-  return folderEnd === -1 ? 'Music' : `Music/${relative.slice(0, folderEnd)}`;
+  return folderEnd === -1 ? directoryName : `${directoryName}/${relative.slice(0, folderEnd)}`;
 }

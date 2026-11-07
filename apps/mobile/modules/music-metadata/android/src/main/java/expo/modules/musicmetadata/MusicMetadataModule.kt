@@ -54,6 +54,7 @@ class MusicMetadataModule : Module() {
       mapOf(
         "title" to cleanTag(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE)),
         "artist" to cleanTag(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST)),
+        "author" to cleanTag(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_AUTHOR)),
         "albumArtist" to cleanTag(
           retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUMARTIST)
         ),

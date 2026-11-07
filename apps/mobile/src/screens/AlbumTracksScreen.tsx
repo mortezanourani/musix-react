@@ -17,14 +17,13 @@ type AlbumTracksScreenProps = NativeStackScreenProps<MainStackParamList, 'AlbumT
 
 export function AlbumTracksScreen({ navigation, route }: AlbumTracksScreenProps) {
   const { albumId } = route.params;
-  const { tracks, status, audiobookAlbumIds } = useLibrary();
+  const { tracks, status } = useLibrary();
   const { playTrack, currentTrack } = usePlayer();
   const styles = useThemedStyles(createStyles);
-  const album = useMemo(() => getAlbumById(tracks, albumId, audiobookAlbumIds), [tracks, albumId, audiobookAlbumIds]);
+  const album = useMemo(() => getAlbumById(tracks, albumId), [tracks, albumId]);
   const albumTracks = useMemo(() => getAlbumTracks(tracks, albumId), [tracks, albumId]);
   const isAudiobook = album?.isAudiobook ?? false;
 
-  // Read-only screen: albums are classified from the Manage Audiobooks page.
   useLayoutEffect(() => {
     navigation.setOptions({
       title: album?.title ?? 'Album',

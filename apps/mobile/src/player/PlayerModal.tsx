@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { getTrackArtistName, getAlbumId } from '@musix/core';
+import { getTrackArtistName } from '@musix/core';
 import { useState } from 'react';
 import {
   Modal,
@@ -14,7 +14,6 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArtworkTile } from '../components/ArtworkTile';
 import { usePlayer, usePlayerProgress } from '../player/PlayerContext';
-import { useLibrary } from '../library/LibraryContext';
 import type { ThemeColors } from '../theme/colors';
 import { useTheme } from '../theme/ThemeContext';
 import { useThemedStyles } from '../theme/useThemedStyles';
@@ -46,16 +45,13 @@ export function PlayerModal() {
     seekTo,
   } = usePlayer();
   const { position, duration, error } = usePlayerProgress();
-  const { audiobookAlbumIds } = useLibrary();
-
   if (!currentTrack) {
     return null;
   }
 
   const progress = duration > 0 ? Math.min(Math.max(position / duration, 0), 1) : 0;
   const canGoNext = currentIndex < queue.length - 1;
-  const albumId = getAlbumId(currentTrack);
-  const isAudiobook = audiobookAlbumIds.has(albumId);
+  const isAudiobook = currentTrack.mediaType === 'audiobook';
   const artworkSize = Math.min(width - 64, height * 0.36, 360);
 
   const handleProgressLayout = (event: LayoutChangeEvent) => {

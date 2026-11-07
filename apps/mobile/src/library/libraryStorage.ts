@@ -10,6 +10,11 @@ type StoredLibrary = {
   tracks: Track[];
 };
 
+type StoredTrack = Omit<Track, 'mediaType' | 'author'> & {
+  mediaType?: Track['mediaType'];
+  author?: Track['author'];
+};
+
 /** Restores the last scanned library, or an empty list when nothing is saved. */
 export async function loadStoredLibrary(): Promise<Track[]> {
   try {
@@ -25,7 +30,13 @@ export async function loadStoredLibrary(): Promise<Track[]> {
       return [];
     }
 
-    return parsed.tracks.filter(isTrack);
+    return parsed.tracks
+      .filter(isTrack)
+      .map((track) => ({
+        ...track,
+        mediaType: track.mediaType ?? 'music',
+        author: track.author ?? null,
+      }));
   } catch {
     return [];
   }
@@ -46,7 +57,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
-function isTrack(value: unknown): value is Track {
+function isTrack(value: unknown): value is StoredTrack {
   return (
     isRecord(value) &&
     typeof value.id === 'string' &&
@@ -54,6 +65,9 @@ function isTrack(value: unknown): value is Track {
     typeof value.title === 'string' &&
     typeof value.filename === 'string' &&
     typeof value.folder === 'string' &&
-    typeof value.durationMs === 'number'
+    typeof value.durationMs === 'number' &&
+    (value.mediaType === undefined ||
+      value.mediaType === 'music' ||
+      value.mediaType === 'audiobook')
   );
 }

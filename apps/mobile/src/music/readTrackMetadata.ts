@@ -4,6 +4,7 @@ import { requireOptionalNativeModule } from 'expo';
 export type TrackMetadata = {
   title: string | null;
   artist: string | null;
+  author: string | null;
   albumArtist: string | null;
   album: string | null;
   trackNumber: number | null;
@@ -13,6 +14,7 @@ export type TrackMetadata = {
 type RawMetadata = {
   title?: unknown;
   artist?: unknown;
+  author?: unknown;
   albumArtist?: unknown;
   album?: unknown;
   trackNumber?: unknown;
@@ -55,6 +57,7 @@ export async function readTrackMetadata(uris: string[]): Promise<TrackMetadata[]
   return rows.map((row) => ({
     title: asText(row.title),
     artist: asText(row.artist),
+    author: asText(row.author),
     albumArtist: asText(row.albumArtist),
     album: asText(row.album),
     trackNumber: asNumber(row.trackNumber),

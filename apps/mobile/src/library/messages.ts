@@ -10,7 +10,7 @@ export function libraryStatusMessage(
     case 'restoring':
       return 'Restoring your library…';
     case 'scanning':
-      return 'Scanning the Music directory…';
+      return 'Scanning the Music and Audiobooks directories…';
     case 'ready':
       return ready;
     case 'error':
@@ -26,7 +26,7 @@ export function libraryEmptyMessage(status: ScanStatus, ready: string): string {
     case 'restoring':
       return 'Restoring your library…';
     case 'scanning':
-      return 'Scanning your music files…';
+      return 'Scanning your audio files…';
     case 'ready':
       return ready;
     case 'error':

@@ -1,4 +1,4 @@
-import { getTrackAlbumTitle, getTrackArtistName, getAlbumId, type Track } from '@musix/core';
+import { getTrackAlbumTitle, getTrackArtistName, type Track } from '@musix/core';
 import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import {
   createContext,
@@ -10,7 +10,6 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { useLibrary } from '../library/LibraryContext';
 import {
   loadRecentlyPlayedTrackIds,
   saveRecentlyPlayedTrackIds,
@@ -60,8 +59,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [recentlyPlayedTrackIds, setRecentlyPlayedTrackIds] = useState<string[]>([]);
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const finishedTrackId = useRef<string | null>(null);
-  const { audiobookAlbumIds } = useLibrary();
-
   const currentTrack = currentIndex >= 0 ? queue[currentIndex] ?? null : null;
   const currentTrackId = currentTrack?.id ?? null;
 
@@ -89,8 +86,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const albumId = getAlbumId(currentTrack);
-    const isAudiobook = audiobookAlbumIds.has(albumId);
+    const isAudiobook = currentTrack.mediaType === 'audiobook';
 
     try {
       player.setActiveForLockScreen(
@@ -114,7 +110,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         // The player may already be released while switching tracks.
       }
     };
-  }, [currentTrack, player, audiobookAlbumIds]);
+  }, [currentTrack, player]);
 
   // Start every newly selected track; reopening the same track is handled by playTrack.
   useEffect(() => {

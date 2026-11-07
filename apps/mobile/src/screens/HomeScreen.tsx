@@ -1,4 +1,4 @@
-import { buildAlbums, buildArtists, getTrackArtistName } from '@musix/core';
+import { buildAlbums, buildArtists, buildAudiobooks, getTrackArtistName } from '@musix/core';
 import type { AlbumSummary, Track } from '@musix/core';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useMemo, useState } from 'react';
@@ -33,7 +33,7 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
   const { width } = useWindowDimensions();
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
-  const { tracks, status, error, updateLibrary, audiobookAlbumIds } = useLibrary();
+  const { tracks, status, error, updateLibrary } = useLibrary();
   const { playTrack, recentlyPlayedTrackIds } = usePlayer();
   const [query, setQuery] = useState('');
 
@@ -55,10 +55,8 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
       [recentlyPlayedTrackIds, tracksById],
   );
   const artists = useMemo(() => buildArtists(tracks), [tracks]);
-  const albums = useMemo(() => buildAlbums(tracks, audiobookAlbumIds), [tracks, audiobookAlbumIds]);
-
-  const regularAlbums = useMemo(() => albums.filter((a) => !a.isAudiobook), [albums]);
-  const audiobooks = useMemo(() => albums.filter((a) => a.isAudiobook), [albums]);
+  const regularAlbums = useMemo(() => buildAlbums(tracks), [tracks]);
+  const audiobooks = useMemo(() => buildAudiobooks(tracks), [tracks]);
 
   const visibleTracks = useMemo(() => {
     if (!searching) {
@@ -162,7 +160,7 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
 
         {noResults ? (
             <Text style={styles.noResults}>
-              No songs, albums, or artists match “{query.trim()}”.
+              No tracks, albums, books, or artists match “{query.trim()}”.
             </Text>
         ) : (
             <>
@@ -208,8 +206,10 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
                               artworkUri={item.artworkUri}
                               title={item.name}
                               kind="artist"
-                              subtitle={`${item.albumCount} ${item.albumCount === 1 ? 'album' : 'albums'}`}
-                              accessibilityLabel={`Open albums by ${item.name}`}
+                              subtitle={`${item.albumCount} ${item.albumCount === 1 ? 'album' : 'albums'} · ${
+                                item.audiobookCount
+                              } ${item.audiobookCount === 1 ? 'book' : 'books'}`}
+                              accessibilityLabel={`Open albums and books by ${item.name}`}
                               onPress={() =>
                                   navigation.navigate('ArtistAlbums', { artistName: item.name })
                               }
@@ -248,11 +248,9 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
                       data={visibleAudiobooks}
                       keyExtractor={(album) => album.id}
                       cardWidth={cardWidth}
-                      // actionLabel="Edit"
-                      // onActionPress={() => navigation.navigate('ManageAudiobooks')}
                       emptyMessage={libraryEmptyMessage(
                           status,
-                          'Audiobooks and PDFs will appear here.',
+                          'Audiobooks from your device will appear here.',
                       )}
                       renderItem={({ item }) => (
                           <MediaCard
