@@ -23,12 +23,19 @@ type RawMetadata = {
 
 type MusicMetadataNativeModule = {
   readMetadata(uris: string[]): Promise<RawMetadata[]>;
+  writeMetadata(
+    uri: string,
+    title: string,
+    artist: string,
+    album: string,
+    trackNumber: string,
+  ): Promise<void>;
 };
 
 export class MusicMetadataUnavailableError extends Error {
   constructor() {
     super(
-      'Reading audio tags needs the musix development build. The tag reader is not available in Expo Go.',
+      'Audio tag access needs the musix development build. The native tag module is not available in Expo Go.',
     );
     this.name = 'MusicMetadataUnavailableError';
   }
@@ -63,6 +70,26 @@ export async function readTrackMetadata(uris: string[]): Promise<TrackMetadata[]
     trackNumber: asNumber(row.trackNumber),
     artworkUri: asText(row.artworkUri),
   }));
+}
+
+/** Writes the editable tags directly to the audio file on the device. */
+export async function writeTrackMetadata(
+  uri: string,
+  metadata: Pick<TrackMetadata, 'album' | 'artist' | 'title' | 'trackNumber'>,
+): Promise<void> {
+  const module = getNativeModule();
+
+  if (!module) {
+    throw new MusicMetadataUnavailableError();
+  }
+
+  await module.writeMetadata(
+    uri,
+    metadata.title ?? '',
+    metadata.artist ?? '',
+    metadata.album ?? '',
+    metadata.trackNumber === null ? '' : String(metadata.trackNumber),
+  );
 }
 
 function asText(value: unknown): string | null {

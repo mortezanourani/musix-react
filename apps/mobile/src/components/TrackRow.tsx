@@ -1,6 +1,8 @@
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { UNKNOWN_ARTIST, type Track } from '@musix/core';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { ThemeColors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 import { useThemedStyles } from '../theme/useThemedStyles';
 import { formatDuration } from '../utils/format';
 
@@ -13,6 +15,7 @@ type TrackRowProps = {
   /** Marks the track that is currently in the player. */
   active?: boolean;
   onPress?: () => void;
+  onEdit?: () => void;
 };
 
 /** A single track row shared by the Home list and album track lists. */
@@ -22,7 +25,9 @@ export function TrackRow({
   meta = 'library',
   active = false,
   onPress,
+  onEdit,
 }: TrackRowProps) {
+  const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   const artist = track.artist ?? UNKNOWN_ARTIST;
   const details =
@@ -46,24 +51,30 @@ export function TrackRow({
     </>
   );
 
-  if (!onPress) {
-    return <View style={styles.row}>{content}</View>;
-  }
-
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`Play ${track.title} by ${artist}`}
-      accessibilityState={{ selected: active }}
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.row,
-        active && styles.activeRow,
-        pressed && styles.pressed,
-      ]}
-    >
-      {content}
-    </Pressable>
+    <View style={[styles.row, active && styles.activeRow]}>
+      <Pressable
+        accessibilityRole={onPress ? 'button' : undefined}
+        accessibilityLabel={onPress ? `Play ${track.title} by ${artist}` : undefined}
+        accessibilityState={onPress ? { selected: active } : undefined}
+        onPress={onPress}
+        disabled={!onPress}
+        style={({ pressed }) => [styles.trackContent, pressed && styles.pressed]}
+      >
+        {content}
+      </Pressable>
+      {onEdit ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Edit tags for ${track.title}`}
+          onPress={onEdit}
+          hitSlop={8}
+          style={({ pressed }) => [styles.editButton, pressed && styles.pressed]}
+        >
+          <MaterialCommunityIcons name="pencil-outline" size={20} color={colors.textMuted} />
+        </Pressable>
+      ) : null}
+    </View>
   );
 }
 
@@ -79,6 +90,20 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: colors.surface,
       borderWidth: 1,
       borderColor: colors.border,
+    },
+    trackContent: {
+      flex: 1,
+      minHeight: 40,
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    editButton: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      width: 40,
+      minHeight: 40,
+      marginLeft: 8,
+      borderRadius: 20,
     },
     activeRow: {
       borderColor: colors.primary,
