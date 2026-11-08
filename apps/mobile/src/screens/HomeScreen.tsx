@@ -189,35 +189,7 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
                       )}
                   />
               ) : null}
-
-              {visibleArtists.length > 0 || !searching ? (
-                  <Shelf
-                      title="Artists"
-                      data={visibleArtists}
-                      keyExtractor={(artist) => artist.name.toLocaleLowerCase()}
-                      cardWidth={cardWidth}
-                      emptyMessage={libraryEmptyMessage(
-                          status,
-                          'Artists from your library will appear here.',
-                      )}
-                      renderItem={({ item }) => (
-                          <MediaCard
-                              width={cardWidth}
-                              artworkUri={item.artworkUri}
-                              title={item.name}
-                              kind="artist"
-                              subtitle={`${item.albumCount} ${item.albumCount === 1 ? 'album' : 'albums'} · ${
-                                item.audiobookCount
-                              } ${item.audiobookCount === 1 ? 'book' : 'books'}`}
-                              accessibilityLabel={`Open albums and books by ${item.name}`}
-                              onPress={() =>
-                                  navigation.navigate('ArtistAlbums', { artistName: item.name })
-                              }
-                          />
-                      )}
-                  />
-              ) : null}
-
+              
               {visibleAlbums.length > 0 || !searching ? (
                   <Shelf
                       title="Albums"
@@ -261,6 +233,34 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
                               subtitle={item.artist}
                               accessibilityLabel={`Open audiobook ${item.title} by ${item.artist}`}
                               onPress={() => navigation.navigate('AlbumTracks', { albumId: item.id })}
+                          />
+                      )}
+                  />
+              ) : null}
+
+              {visibleArtists.length > 0 || !searching ? (
+                  <Shelf
+                      title="Artists"
+                      data={visibleArtists}
+                      keyExtractor={(artist) => artist.name.toLocaleLowerCase()}
+                      cardWidth={cardWidth}
+                      emptyMessage={libraryEmptyMessage(
+                          status,
+                          'Artists from your library will appear here.',
+                      )}
+                      renderItem={({ item }) => (
+                          <MediaCard
+                              width={cardWidth}
+                              artworkUri={item.artworkUri}
+                              title={item.name}
+                              kind="artist"
+                              subtitle={`${item.albumCount} ${item.albumCount === 1 ? 'album' : 'albums'} · ${
+                                item.audiobookCount
+                              } ${item.audiobookCount === 1 ? 'book' : 'books'}`}
+                              accessibilityLabel={`Open albums and books by ${item.name}`}
+                              onPress={() =>
+                                  navigation.navigate('ArtistAlbums', { artistName: item.name })
+                              }
                           />
                       )}
                   />
