@@ -26,10 +26,11 @@ Monorepo for the musix music player.
   embedded tags (title, artist, author, album, album artist, track number,
   cover art)
   through a local native module, and persists the result so it survives an app
-  restart. The **Manage music files** page in Settings lets you search files
-  and edit their album, track number, title, and artist tags directly in the
-  audio file, with Android's per-file approval on Android 11 and newer. Artists
-  from both directories appear together in **Artists**.
+  restart. The **Manage music files** page in Settings shows the Music and
+  Audiobooks directories as expandable folder trees, with search across files.
+  Select a file to edit its album, track number, title, and artist tags directly
+  in the audio file, with Android's per-file approval on Android 11 and newer.
+  Artists from both directories appear together in **Artists**.
 - **Albums** shows a two-column grid of album cover tiles (initials when a file
   has no embedded art), grouped by album title and artist. Tapping an album
   opens its tracks in album order.
