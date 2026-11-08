@@ -1,4 +1,4 @@
-# musix
+# Musix
 
 Monorepo for the musix music player.
 
