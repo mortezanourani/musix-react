@@ -73,6 +73,7 @@ export function AlbumTracksScreen({ navigation, route }: AlbumTracksScreenProps)
           meta="album"
           active={currentTrack?.id === item.id}
           onPress={() => playTrack(item, albumTracks)}
+          onEdit={() => navigation.navigate('EditTrack', { trackId: item.id })}
         />
       )}
       ListEmptyComponent={<Text style={styles.empty}>{emptyMessage}</Text>}
