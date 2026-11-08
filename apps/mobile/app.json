@@ -22,7 +22,7 @@
         "android.permission.READ_MEDIA_VISUAL_USER_SELECTED"
       ],
       "adaptiveIcon": {
-        "backgroundColor": "transparent",
+        "backgroundColor": "#0b0b0d",
         "foregroundImage": "./assets/android-icon-foreground.png"
       },
       "predictiveBackGestureEnabled": false
