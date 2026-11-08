@@ -26,7 +26,10 @@ Monorepo for the musix music player.
   embedded tags (title, artist, author, album, album artist, track number,
   cover art)
   through a local native module, and persists the result so it survives an app
-  restart. Artists from both directories appear together in **Artists**.
+  restart. Tags for a track can also be edited from its album track list; the
+  app writes the changed album, track number, title, and artist into the audio
+  file, with Android's per-file approval on Android 11 and newer. Artists from
+  both directories appear together in **Artists**.
 - **Albums** shows a two-column grid of album cover tiles (initials when a file
   has no embedded art), grouped by album title and artist. Tapping an album
   opens its tracks in album order.
@@ -96,7 +99,10 @@ foreground-service permissions and the iOS `audio` background mode).
 
 The tag reader is a local Expo module at
 `apps/mobile/modules/music-metadata`. Expo autolinking finds it through the
-`nativeModulesDir` setting in `apps/mobile/package.json`.
+`nativeModulesDir` setting in `apps/mobile/package.json`. It uses
+jaudiotagger to write tags into supported audio files; tag editing requires
+Android 11 or newer so Android can request approval before changing existing
+media files.
 
 ### Web (Vite)
 
