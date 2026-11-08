@@ -5,6 +5,7 @@ import { AlbumTracksScreen } from '../screens/AlbumTracksScreen';
 import { ArtistAlbumsScreen } from '../screens/ArtistAlbumsScreen';
 import { EditTrackScreen } from '../screens/EditTrackScreen';
 import { HomeScreen } from '../screens/HomeScreen';
+import { ManageFilesScreen } from '../screens/ManageFilesScreen';
 import { useTheme } from '../theme/ThemeContext';
 import {SettingsScreen} from "../screens/SettingsScreen";
 
@@ -35,6 +36,11 @@ export function MainStack() {
                 name="Settings"
                 component={SettingsScreen}
                 options={{ title: 'Settings' }}
+            />
+            <Stack.Screen
+                name="ManageFiles"
+                component={ManageFilesScreen}
+                options={{ title: 'Manage music files' }}
             />
             <Stack.Screen
                 name="ArtistAlbums"

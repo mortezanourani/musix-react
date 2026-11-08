@@ -1,6 +1,8 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useCallback, type ComponentProps } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { MainStackParamList } from '../navigation/types';
 import type { ThemeColors } from '../theme/colors';
 import { useTheme, type ThemeMode } from '../theme/ThemeContext';
 import { useThemedStyles } from '../theme/useThemedStyles';
@@ -34,7 +36,9 @@ const THEME_OPTIONS: readonly ThemeOption[] = [
   },
 ];
 
-export function SettingsScreen() {
+type SettingsScreenProps = NativeStackScreenProps<MainStackParamList, 'Settings'>;
+
+export function SettingsScreen({ navigation }: SettingsScreenProps) {
   const { tracks, status, error, updateLibrary } = useLibrary();
   const { colors, mode, setMode } = useTheme();
   const styles = useThemedStyles(createStyles);
@@ -97,6 +101,20 @@ export function SettingsScreen() {
         <Text style={styles.sectionTitle}>Library</Text>
 
         <View style={styles.libraryGroup}>
+          <Pressable
+            style={({ pressed }) => [styles.libraryOption, pressed && styles.optionPressed]}
+            onPress={() => navigation.navigate('ManageFiles')}
+          >
+            <View style={styles.optionContent}>
+              <MaterialCommunityIcons name="folder-music" size={24} color={colors.text} />
+              <View style={styles.optionTextGroup}>
+                <Text style={styles.optionText}>Manage music files</Text>
+                <Text style={styles.optionDescription}>Edit tags stored in your audio files</Text>
+              </View>
+            </View>
+            <MaterialCommunityIcons name="chevron-right" size={24} color={colors.textMuted} />
+          </Pressable>
+
           <Pressable
             style={({ pressed }) => [styles.libraryOption, pressed && styles.optionPressed]}
             onPress={handleLibraryUpdate}
