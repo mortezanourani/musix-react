@@ -30,12 +30,15 @@ function MiniPlayerBar() {
   const {
     currentTrack,
     isPlaying,
+    playbackRate,
     canGoNext,
     canGoPrevious,
     openPlayer,
     togglePlayback,
     playPrevious,
     playNext,
+    seekBackward,
+    seekForward,
   } = usePlayer();
   const { position, duration } = usePlayerProgress();
 
@@ -44,6 +47,7 @@ function MiniPlayerBar() {
   }
 
   const progress = duration > 0 ? Math.min(Math.max(position / duration, 0), 1) : 0;
+  const isAudiobook = currentTrack.mediaType === 'audiobook';
 
   return (
     <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, 8) }]}>
@@ -73,56 +77,81 @@ function MiniPlayerBar() {
           </Text>
           <Text style={styles.subtitle} numberOfLines={1}>
             {getTrackArtistName(currentTrack)}
+            {isAudiobook && playbackRate !== 1 ? ` · ${playbackRate}×` : ''}
           </Text>
         </View>
       </Pressable>
 
       <View style={styles.controls}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Previous track"
-          accessibilityState={{ disabled: !canGoPrevious }}
-          disabled={!canGoPrevious}
-          onPress={playPrevious}
-          hitSlop={8}
-          style={({ pressed }) => [styles.controlButton, pressed && styles.pressed]}
-        >
-          <MaterialCommunityIcons
-            name="skip-previous"
-            size={26}
-            color={canGoPrevious ? colors.text : colors.textSubtle}
-          />
-        </Pressable>
-
-        <Pressable
+        {isAudiobook ? (
+          <Pressable
             accessibilityRole="button"
-            accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
-            onPress={togglePlayback}
+            accessibilityLabel="Rewind 10 seconds"
+            onPress={seekBackward}
             hitSlop={8}
-            style={({ pressed }) => [styles.controlButton, styles.playButton, pressed && styles.pressed]}
-        >
-          <MaterialCommunityIcons
-              name={isPlaying ? 'pause' : 'play'}
-              size={24}
-              color={isPlaying ? colors.text : colors.primary}
-          />
-        </Pressable>
+            style={({ pressed }) => [styles.controlButton, pressed && styles.pressed]}
+          >
+            <MaterialCommunityIcons name="rewind-10" size={26} color={colors.text} />
+          </Pressable>
+        ) : (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Previous track"
+            accessibilityState={{ disabled: !canGoPrevious }}
+            disabled={!canGoPrevious}
+            onPress={playPrevious}
+            hitSlop={8}
+            style={({ pressed }) => [styles.controlButton, pressed && styles.pressed]}
+          >
+            <MaterialCommunityIcons
+              name="skip-previous"
+              size={26}
+              color={canGoPrevious ? colors.text : colors.textSubtle}
+            />
+          </Pressable>
+        )}
 
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Next track"
-          accessibilityState={{ disabled: !canGoNext }}
-          disabled={!canGoNext}
-          onPress={playNext}
+          accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
+          onPress={togglePlayback}
           hitSlop={8}
-          style={({ pressed }) => [styles.controlButton, pressed && styles.pressed]}
+          style={({ pressed }) => [styles.controlButton, styles.playButton, pressed && styles.pressed]}
         >
           <MaterialCommunityIcons
-            name="skip-next"
-            size={26}
-            color={canGoNext ? colors.text : colors.textSubtle}
+            name={isPlaying ? 'pause' : 'play'}
+            size={24}
+            color={isPlaying ? colors.text : colors.primary}
           />
         </Pressable>
+
+        {isAudiobook ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Forward 10 seconds"
+            onPress={seekForward}
+            hitSlop={8}
+            style={({ pressed }) => [styles.controlButton, pressed && styles.pressed]}
+          >
+            <MaterialCommunityIcons name="fast-forward-10" size={26} color={colors.text} />
+          </Pressable>
+        ) : (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Next track"
+            accessibilityState={{ disabled: !canGoNext }}
+            disabled={!canGoNext}
+            onPress={playNext}
+            hitSlop={8}
+            style={({ pressed }) => [styles.controlButton, pressed && styles.pressed]}
+          >
+            <MaterialCommunityIcons
+              name="skip-next"
+              size={26}
+              color={canGoNext ? colors.text : colors.textSubtle}
+            />
+          </Pressable>
+        )}
       </View>
     </View>
   );

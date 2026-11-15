@@ -1,4 +1,4 @@
-import { UNKNOWN_ARTIST, type Track } from '@musix/core';
+import { getTrackArtistName, type Track } from '@musix/core';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { ThemeColors } from '../theme/colors';
 import { useThemedStyles } from '../theme/useThemedStyles';
@@ -24,7 +24,7 @@ export function TrackRow({
   onPress,
 }: TrackRowProps) {
   const styles = useThemedStyles(createStyles);
-  const artist = track.artist ?? UNKNOWN_ARTIST;
+  const artist = getTrackArtistName(track);
   const details =
     meta === 'library'
       ? `${artist} · ${track.folder} · ${formatDuration(track.durationMs)}`

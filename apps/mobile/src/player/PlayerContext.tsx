@@ -1,4 +1,9 @@
-import { getTrackAlbumTitle, getTrackArtistName, type Track } from '@musix/core';
+import {
+  getTrackAlbumTitle,
+  getTrackArtistName,
+  getTrackMediaType,
+  type Track,
+} from '@musix/core';
 import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import {
   createContext,
@@ -14,11 +19,34 @@ import {
   loadRecentlyPlayedTrackIds,
   saveRecentlyPlayedTrackIds,
 } from './recentlyPlayedStorage';
+import {
+  DEFAULT_PLAYBACK_RATES,
+  loadPlaybackRates,
+  loadResumePositions,
+  savePlaybackRates,
+  saveResumePositions,
+  type PlaybackRates,
+} from './playbackStorage';
 
 /** How many entries the listening history keeps. */
 const RECENT_HISTORY_LIMIT = 65;
 
+/** How often a playing audiobook's position is written to storage. */
+const RESUME_SAVE_INTERVAL_MS = 5_000;
+
+/** Positions below this are treated as "not started" and are not restored. */
+const MIN_RESUME_SECONDS = 5;
+
+/** Positions this close to the end are treated as finished and cleared. */
+const RESUME_END_MARGIN_SECONDS = 10;
+
 export type RepeatMode = 'off' | 'all' | 'one';
+
+/** What the player should do when the sleep timer reaches zero. */
+export type SleepTimer =
+  | { mode: 'off' }
+  | { mode: 'duration'; minutes: number; endsAt: number }
+  | { mode: 'endOfTrack' };
 
 type PlayerContextValue = {
   currentTrack: Track | null;
@@ -30,6 +58,10 @@ type PlayerContextValue = {
   shuffleEnabled: boolean;
   /** What happens when the queue reaches its end. */
   repeatMode: RepeatMode;
+  /** Speed applied to the current track (1 is normal). */
+  playbackRate: number;
+  /** Countdown or end-of-track timer that pauses playback. */
+  sleepTimer: SleepTimer;
   /** False when there is no next track and repeat is off. */
   canGoNext: boolean;
   /** Whether the previous control is available; it restarts the first track. */
@@ -54,6 +86,12 @@ type PlayerContextValue = {
   toggleShuffle: () => void;
   /** Cycles repeat between off, all, and one. */
   cycleRepeatMode: () => void;
+  /** Changes the speed saved for the current track's media type. */
+  setPlaybackRate: (rate: number) => void;
+  /** Starts a countdown sleep timer, or clears it with null or 0. */
+  setSleepTimer: (minutes: number | null) => void;
+  /** Pauses when the current track ends instead of advancing. */
+  setSleepTimerToEndOfTrack: () => void;
   seekForward: () => void;
   seekBackward: () => void;
   seekTo: (seconds: number) => void;
@@ -77,13 +115,23 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [isVisible, setIsVisible] = useState(false);
   const [shuffleEnabled, setShuffleEnabled] = useState(false);
   const [repeatMode, setRepeatMode] = useState<RepeatMode>('off');
+  const [playbackRates, setPlaybackRates] = useState<PlaybackRates>(DEFAULT_PLAYBACK_RATES);
+  const [sleepTimer, setSleepTimerState] = useState<SleepTimer>({ mode: 'off' });
   const [recentlyPlayedTrackIds, setRecentlyPlayedTrackIds] = useState<string[]>([]);
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const finishHandled = useRef(false);
+  // Positions saved for audiobooks, keyed by track ID.
+  const resumePositions = useRef<Record<string, number>>({});
+  const lastResumeSaveAt = useRef(0);
+  const currentTrackRef = useRef<Track | null>(null);
   // The order to restore when shuffle is turned off again.
   const unshuffledQueue = useRef<{ queue: Track[]; index: number } | null>(null);
   const currentTrack = currentIndex >= 0 ? queue[currentIndex] ?? null : null;
   const currentTrackId = currentTrack?.id ?? null;
+  const currentMediaType = currentTrack ? getTrackMediaType(currentTrack) : null;
+  const playbackRate = currentMediaType ? playbackRates[currentMediaType] : 1;
+
+  currentTrackRef.current = currentTrack;
 
   const canGoNext =
     currentIndex >= 0 &&
@@ -93,6 +141,46 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   // Keep one native player for the whole queue so lock-screen controls have one owner.
   const player = useAudioPlayer(null, { updateInterval: 250 });
   const status = useAudioPlayerStatus(player);
+
+  /** Writes the current audiobook position to storage. */
+  const storeResumePosition = useCallback((track: Track, position: number) => {
+    if (getTrackMediaType(track) !== 'audiobook') {
+      return;
+    }
+
+    if (!Number.isFinite(position) || position < 1) {
+      return;
+    }
+
+    const durationSeconds = track.durationMs > 0 ? track.durationMs / 1000 : 0;
+    const nearEnd =
+      durationSeconds > 0 && position >= durationSeconds - RESUME_END_MARGIN_SECONDS;
+
+    if (nearEnd) {
+      if (!(track.id in resumePositions.current)) {
+        return;
+      }
+
+      delete resumePositions.current[track.id];
+    } else {
+      resumePositions.current[track.id] = Math.floor(position);
+    }
+
+    void saveResumePositions(resumePositions.current).catch(() => {
+      // Resume positions are best-effort; playback itself is unaffected.
+    });
+  }, []);
+
+  const clearResumePosition = useCallback((trackId: string) => {
+    if (!(trackId in resumePositions.current)) {
+      return;
+    }
+
+    delete resumePositions.current[trackId];
+    void saveResumePositions(resumePositions.current).catch(() => {
+      // Resume positions are best-effort; playback itself is unaffected.
+    });
+  }, []);
 
   useEffect(() => {
     void setAudioModeAsync({
@@ -104,6 +192,40 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       // Playback still works with the platform's default audio mode.
     });
   }, []);
+
+  // Restore saved speeds and audiobook positions once. If a book starts before
+  // storage has answered, resume it here as soon as the position is available.
+  useEffect(() => {
+    let cancelled = false;
+
+    Promise.all([loadPlaybackRates(), loadResumePositions()]).then(([rates, positions]) => {
+      if (cancelled) {
+        return;
+      }
+
+      setPlaybackRates(rates);
+      resumePositions.current = positions;
+
+      const track = currentTrackRef.current;
+      const saved = track ? positions[track.id] : undefined;
+
+      if (
+        track &&
+        getTrackMediaType(track) === 'audiobook' &&
+        saved !== undefined &&
+        saved >= MIN_RESUME_SECONDS &&
+        player.currentTime < MIN_RESUME_SECONDS
+      ) {
+        void player.seekTo(saved).catch(() => {
+          // Resuming is best-effort; playback already started from the top.
+        });
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [player]);
 
   // Register the player with the OS media session. On Android this is what
   // starts the media foreground service that keeps playback alive when the
@@ -133,22 +255,89 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         {
           showSeekForward: isAudiobook,
           showSeekBackward: isAudiobook,
-          showNextTrack: canGoNext,
-          showPreviousTrack: canGoPrevious,
         },
       );
     } catch {
       // Lock screen controls are best-effort; playback itself is unaffected.
     }
-  }, [canGoNext, canGoPrevious, currentTrack, player]);
+  }, [currentTrack, player]);
 
   // Replace the source on the shared player and start each newly selected track.
   useEffect(() => {
-    if (currentTrack) {
-      player.replace(currentTrack.uri);
-      player.play();
+    if (!currentTrack) {
+      return;
+    }
+
+    player.replace(currentTrack.uri);
+    player.play();
+
+    const saved = resumePositions.current[currentTrack.id];
+    const durationSeconds = currentTrack.durationMs > 0 ? currentTrack.durationMs / 1000 : 0;
+
+    if (
+      getTrackMediaType(currentTrack) === 'audiobook' &&
+      saved !== undefined &&
+      saved >= MIN_RESUME_SECONDS &&
+      (durationSeconds <= 0 || saved < durationSeconds - RESUME_END_MARGIN_SECONDS)
+    ) {
+      void player.seekTo(saved).catch(() => {
+        // Resuming is best-effort; playback already started from the top.
+      });
     }
   }, [currentTrack?.id, currentTrack?.uri, player]);
+
+  // Apply the speed saved for the current media type whenever the track or the
+  // chosen rate changes. Music and audiobooks keep separate speeds.
+  useEffect(() => {
+    try {
+      player.setPlaybackRate(playbackRate, 'high');
+    } catch {
+      // Playback speed is best-effort; playback itself is unaffected.
+    }
+  }, [currentTrack?.id, playbackRate, player]);
+
+  // Keep the saved audiobook position fresh while it plays.
+  useEffect(() => {
+    if (
+      !currentTrack ||
+      getTrackMediaType(currentTrack) !== 'audiobook' ||
+      !status.playing
+    ) {
+      return;
+    }
+
+    const now = Date.now();
+
+    if (now - lastResumeSaveAt.current < RESUME_SAVE_INTERVAL_MS) {
+      return;
+    }
+
+    lastResumeSaveAt.current = now;
+    storeResumePosition(currentTrack, status.currentTime);
+  }, [currentTrack, status.currentTime, status.playing, storeResumePosition]);
+
+  // Save the position when playback pauses or the track changes.
+  useEffect(() => {
+    if (!currentTrack) {
+      return;
+    }
+
+    return () => {
+      storeResumePosition(currentTrack, player.currentTime);
+    };
+  }, [currentTrack?.id, player, storeResumePosition]);
+
+  // Pausing through the UI, the lock screen, or a finished book all preserve
+  // the position the user stopped at.
+  const wasPlaying = useRef(status.playing);
+
+  useEffect(() => {
+    if (wasPlaying.current && !status.playing && currentTrack) {
+      storeResumePosition(currentTrack, status.currentTime);
+    }
+
+    wasPlaying.current = status.playing;
+  }, [currentTrack, status.currentTime, status.playing, storeResumePosition]);
 
   useEffect(() => {
     return () => {
@@ -159,6 +348,40 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }
     };
   }, [player]);
+
+  // Sleep timers belong to audiobook listening. If the queue moves on to a
+  // music track, clear the timer rather than pausing unexpectedly later.
+  useEffect(() => {
+    if (sleepTimer.mode === 'off') {
+      return;
+    }
+
+    if (!currentTrack || getTrackMediaType(currentTrack) !== 'audiobook') {
+      setSleepTimerState({ mode: 'off' });
+    }
+  }, [currentTrack, sleepTimer.mode]);
+
+  // Pause playback when a countdown sleep timer reaches zero.
+  useEffect(() => {
+    if (sleepTimer.mode !== 'duration') {
+      return;
+    }
+
+    const remaining = sleepTimer.endsAt - Date.now();
+
+    if (remaining <= 0) {
+      player.pause();
+      setSleepTimerState({ mode: 'off' });
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      player.pause();
+      setSleepTimerState({ mode: 'off' });
+    }, remaining);
+
+    return () => clearTimeout(timeout);
+  }, [player, sleepTimer]);
 
   // Advance through the queue when a track reaches its end.
   useEffect(() => {
@@ -172,6 +395,19 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
 
     finishHandled.current = true;
+
+    // A finished audiobook starts from the beginning the next time it is
+    // opened instead of resuming at the very end.
+    clearResumePosition(currentTrack.id);
+
+    // "End of track" is the sleep timer for listeners who want to stop at a
+    // chapter boundary rather than mid-sentence.
+    if (sleepTimer.mode === 'endOfTrack') {
+      player.pause();
+      setSleepTimerState({ mode: 'off' });
+      void player.seekTo(0);
+      return;
+    }
 
     if (repeatMode === 'one' || (repeatMode === 'all' && queue.length <= 1)) {
       void player.seekTo(0).then(() => player.play());
@@ -190,7 +426,21 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
     player.pause();
     void player.seekTo(0);
-  }, [currentTrack, currentIndex, player, queue.length, repeatMode, status.didJustFinish]);
+
+    // Nothing else will play, so a countdown timer no longer has a purpose.
+    if (sleepTimer.mode !== 'off') {
+      setSleepTimerState({ mode: 'off' });
+    }
+  }, [
+    clearResumePosition,
+    currentTrack,
+    currentIndex,
+    player,
+    queue.length,
+    repeatMode,
+    sleepTimer.mode,
+    status.didJustFinish,
+  ]);
 
   // Restore the history once; merge with tracks played while it was loading.
   useEffect(() => {
@@ -497,26 +747,39 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setRepeatMode((mode) => (mode === 'off' ? 'all' : mode === 'all' ? 'one' : 'off'));
   }, []);
 
-  const playNextRef = useRef<() => void>(() => {});
-  const playPreviousRef = useRef<() => void>(() => {});
+  const setPlaybackRate = useCallback(
+    (rate: number) => {
+      if (!currentMediaType) {
+        return;
+      }
 
-  useEffect(() => {
-    playNextRef.current = playNext;
-    playPreviousRef.current = playPrevious;
-  }, [playNext, playPrevious]);
+      const nextRate = normalizePlaybackRate(rate);
+      const nextRates = { ...playbackRates, [currentMediaType]: nextRate };
 
-  // Transport buttons on the lock screen / notification advance the queue.
-  useEffect(() => {
-    const nextSubscription = player.addListener('lockScreenNext', () => playNextRef.current());
-    const previousSubscription = player.addListener('lockScreenPrevious', () =>
-      playPreviousRef.current(),
-    );
+      setPlaybackRates(nextRates);
+      void savePlaybackRates(nextRates).catch(() => {
+        // Keep the chosen speed for this session even if it cannot be saved.
+      });
+    },
+    [currentMediaType, playbackRates],
+  );
 
-    return () => {
-      nextSubscription.remove();
-      previousSubscription.remove();
-    };
-  }, [player]);
+  const setSleepTimer = useCallback((minutes: number | null) => {
+    if (minutes === null || minutes <= 0) {
+      setSleepTimerState({ mode: 'off' });
+      return;
+    }
+
+    setSleepTimerState({
+      mode: 'duration',
+      minutes,
+      endsAt: Date.now() + minutes * 60_000,
+    });
+  }, []);
+
+  const setSleepTimerToEndOfTrack = useCallback(() => {
+    setSleepTimerState({ mode: 'endOfTrack' });
+  }, []);
 
   const value = useMemo(
     () => ({
@@ -527,6 +790,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       isVisible,
       shuffleEnabled,
       repeatMode,
+      playbackRate,
+      sleepTimer,
       canGoNext,
       canGoPrevious,
       recentlyPlayedTrackIds,
@@ -541,6 +806,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       playPrevious,
       toggleShuffle,
       cycleRepeatMode,
+      setPlaybackRate,
+      setSleepTimer,
+      setSleepTimerToEndOfTrack,
       seekForward,
       seekBackward,
       seekTo,
@@ -553,6 +821,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       isVisible,
       shuffleEnabled,
       repeatMode,
+      playbackRate,
+      sleepTimer,
       canGoNext,
       canGoPrevious,
       recentlyPlayedTrackIds,
@@ -567,6 +837,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       playPrevious,
       toggleShuffle,
       cycleRepeatMode,
+      setPlaybackRate,
+      setSleepTimer,
+      setSleepTimerToEndOfTrack,
       seekForward,
       seekBackward,
       seekTo,
@@ -591,6 +864,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       </PlayerProgressContext.Provider>
     </PlayerContext.Provider>
   );
+}
+
+/** Keeps a requested rate inside the range both Android and iOS support. */
+function normalizePlaybackRate(rate: number): number {
+  if (!Number.isFinite(rate)) {
+    return 1;
+  }
+
+  return Math.min(Math.max(rate, 0.5), 2);
 }
 
 /** Shuffles tracks with Fisher-Yates, optionally keeping one track first. */

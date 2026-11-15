@@ -7,6 +7,7 @@ import {
   Modal,
   PanResponder,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -19,7 +20,9 @@ import {
   usePlayer,
   usePlayerProgress,
   type RepeatMode,
+  type SleepTimer,
 } from '../player/PlayerContext';
+import { PLAYBACK_RATE_OPTIONS } from '../player/playbackStorage';
 import type { ThemeColors } from '../theme/colors';
 import { useTheme } from '../theme/ThemeContext';
 import { useThemedStyles } from '../theme/useThemedStyles';
@@ -34,6 +37,12 @@ const DISMISS_VELOCITY = 0.9;
 /** Fixed queue row height (including margin), used to jump to the current track. */
 const QUEUE_ROW_HEIGHT = 68;
 
+/** The sheets that can cover the player. */
+type PlayerPanel = 'queue' | 'speed' | 'sleep';
+
+/** Sleep timer lengths offered in minutes. */
+const SLEEP_TIMER_MINUTES = [5, 15, 30, 45, 60] as const;
+
 /**
  * A true modal overlay (not a navigation screen) that presents the current
  * track and its playback controls.
@@ -45,10 +54,11 @@ export function PlayerModal() {
   const styles = useThemedStyles(createStyles);
   const [progressWidth, setProgressWidth] = useState(0);
   const [scrubSeconds, setScrubSeconds] = useState<number | null>(null);
-  const [showQueue, setShowQueue] = useState(false);
+  const [panel, setPanel] = useState<PlayerPanel | null>(null);
+  const [now, setNow] = useState(() => Date.now());
   const translateY = useRef(new Animated.Value(0)).current;
   const scrubSecondRef = useRef<number | null>(null);
-  const closeQueue = useCallback(() => setShowQueue(false), []);
+  const closePanel = useCallback(() => setPanel(null), []);
 
   const {
     currentTrack,
@@ -58,6 +68,8 @@ export function PlayerModal() {
     isVisible,
     shuffleEnabled,
     repeatMode,
+    playbackRate,
+    sleepTimer,
     canGoNext,
     canGoPrevious,
     minimizePlayer,
@@ -69,6 +81,9 @@ export function PlayerModal() {
     seekTo,
     toggleShuffle,
     cycleRepeatMode,
+    setPlaybackRate,
+    setSleepTimer,
+    setSleepTimerToEndOfTrack,
   } = usePlayer();
   const { position, duration, error } = usePlayerProgress();
 
@@ -84,11 +99,24 @@ export function PlayerModal() {
     if (isVisible) {
       translateY.setValue(0);
     } else {
-      setShowQueue(false);
+      setPanel(null);
       setScrubSeconds(null);
       scrubSecondRef.current = null;
     }
   }, [isVisible, translateY]);
+
+  // Tick once per second while a countdown timer is active so its label
+  // counts down without re-rendering every player consumer.
+  useEffect(() => {
+    if (!isVisible || sleepTimer.mode !== 'duration') {
+      return;
+    }
+
+    setNow(Date.now());
+    const interval = setInterval(() => setNow(Date.now()), 1_000);
+
+    return () => clearInterval(interval);
+  }, [isVisible, sleepTimer]);
 
   // A track change cancels any in-flight scrub so it cannot seek the new track.
   useEffect(() => {
@@ -183,6 +211,7 @@ export function PlayerModal() {
   const canGoBack = isAudiobook || canGoPrevious;
   const canGoForward = isAudiobook || canGoNext;
   const repeatIcon = repeatMode === 'one' ? 'repeat-once' : 'repeat';
+  const sleepStatus = describeSleepTimer(sleepTimer, now);
 
   const handleProgressLayout = (event: LayoutChangeEvent) => {
     setProgressWidth(event.nativeEvent.layout.width);
@@ -193,8 +222,8 @@ export function PlayerModal() {
       visible={isVisible}
       animationType="slide"
       onRequestClose={() => {
-        if (showQueue) {
-          setShowQueue(false);
+        if (panel) {
+          setPanel(null);
           return;
         }
 
@@ -238,7 +267,7 @@ export function PlayerModal() {
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel="Open queue"
-                  onPress={() => setShowQueue(true)}
+                  onPress={() => setPanel('queue')}
                   hitSlop={12}
                   style={({ pressed }) => [styles.topBarButton, pressed && styles.pressed]}
                 >
@@ -307,13 +336,33 @@ export function PlayerModal() {
 
                 <View style={styles.timeRow}>
                   <Text style={styles.time}>{formatPlaybackTime(displayPosition)}</Text>
+                  {sleepStatus ? (
+                    <Text style={styles.sleepStatus} numberOfLines={1}>
+                      {sleepStatus}
+                    </Text>
+                  ) : null}
                   <Text style={styles.time}>{formatPlaybackTime(duration)}</Text>
                 </View>
               </View>
 
               <View style={styles.controls}>
                 {isAudiobook ? (
-                  <View style={styles.modeButton} />
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Playback speed ${formatPlaybackRate(playbackRate)}`}
+                    onPress={() => setPanel('speed')}
+                    hitSlop={8}
+                    style={({ pressed }) => [styles.modeButton, pressed && styles.pressed]}
+                  >
+                    <Text
+                      style={[
+                        styles.rateLabel,
+                        playbackRate !== 1 && styles.rateLabelActive,
+                      ]}
+                    >
+                      {formatPlaybackRate(playbackRate)}
+                    </Text>
+                  </Pressable>
                 ) : (
                   <Pressable
                     accessibilityRole="button"
@@ -401,25 +450,48 @@ export function PlayerModal() {
                   </Pressable>
                 )}
 
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={repeatLabel(repeatMode)}
-                  accessibilityState={{ selected: repeatMode !== 'off' }}
-                  onPress={cycleRepeatMode}
-                  hitSlop={8}
-                  style={({ pressed }) => [styles.modeButton, pressed && styles.pressed]}
-                >
-                  <MaterialCommunityIcons
-                    name={repeatIcon}
-                    size={24}
-                    color={repeatMode === 'off' ? colors.textMuted : colors.primary}
-                  />
-                </Pressable>
+                {isAudiobook ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                      sleepTimer.mode === 'off'
+                        ? 'Set sleep timer'
+                        : sleepStatus ?? 'Sleep timer'
+                    }
+                    accessibilityState={{ selected: sleepTimer.mode !== 'off' }}
+                    onPress={() => setPanel('sleep')}
+                    hitSlop={8}
+                    style={({ pressed }) => [styles.modeButton, pressed && styles.pressed]}
+                  >
+                    <MaterialCommunityIcons
+                      name={sleepTimer.mode === 'off' ? 'timer-outline' : 'timer'}
+                      size={24}
+                      color={sleepTimer.mode === 'off' ? colors.textMuted : colors.primary}
+                    />
+                  </Pressable>
+                ) : (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={repeatLabel(repeatMode)}
+                    accessibilityState={{ selected: repeatMode !== 'off' }}
+                    onPress={cycleRepeatMode}
+                    hitSlop={8}
+                    style={({ pressed }) => [styles.modeButton, pressed && styles.pressed]}
+                  >
+                    <MaterialCommunityIcons
+                      name={repeatIcon}
+                      size={24}
+                      color={repeatMode === 'off' ? colors.textMuted : colors.primary}
+                    />
+                  </Pressable>
+                )}
               </View>
             </View>
           </View>
 
-          {showQueue ? <QueuePanel onClose={closeQueue} /> : null}
+          {panel === 'queue' ? <QueuePanel onClose={closePanel} /> : null}
+          {panel === 'speed' ? <SpeedPanel onClose={closePanel} /> : null}
+          {panel === 'sleep' ? <SleepPanel onClose={closePanel} /> : null}
         </Animated.View>
       </View>
     </Modal>
@@ -448,25 +520,13 @@ const QueuePanel = memo(function QueuePanel({ onClose }: { onClose: () => void }
         { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 12 },
       ]}
     >
-      <View style={styles.queueHeader}>
-        <View style={styles.queueHeaderText}>
-          <Text style={styles.queueTitle}>Queue</Text>
-          <Text style={styles.queueSummary}>
-            {queue.length} {queue.length === 1 ? 'track' : 'tracks'} ·{' '}
-            {shuffleEnabled ? 'Shuffled' : 'In order'} · {repeatLabel(repeatMode)}
-          </Text>
-        </View>
-
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Close queue"
-          onPress={onClose}
-          hitSlop={12}
-          style={({ pressed }) => [styles.queueClose, pressed && styles.pressed]}
-        >
-          <MaterialCommunityIcons name="chevron-down" size={28} color={colors.text} />
-        </Pressable>
-      </View>
+      <PanelHeader
+        title="Queue"
+        summary={`${queue.length} ${queue.length === 1 ? 'track' : 'tracks'} · ${
+          shuffleEnabled ? 'Shuffled' : 'In order'
+        } · ${repeatLabel(repeatMode)}`}
+        onClose={onClose}
+      />
 
       <FlatList
         data={queue}
@@ -582,6 +642,254 @@ const QueuePanel = memo(function QueuePanel({ onClose }: { onClose: () => void }
     </View>
   );
 });
+
+function PanelHeader({
+  title,
+  summary,
+  onClose,
+}: {
+  title: string;
+  summary?: string;
+  onClose: () => void;
+}) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
+  return (
+    <View style={styles.queueHeader}>
+      <View style={styles.queueHeaderText}>
+        <Text style={styles.queueTitle}>{title}</Text>
+        {summary ? <Text style={styles.queueSummary}>{summary}</Text> : null}
+      </View>
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Close ${title.toLocaleLowerCase()}`}
+        onPress={onClose}
+        hitSlop={12}
+        style={({ pressed }) => [styles.queueClose, pressed && styles.pressed]}
+      >
+        <MaterialCommunityIcons name="chevron-down" size={28} color={colors.text} />
+      </Pressable>
+    </View>
+  );
+}
+
+const SpeedPanel = memo(function SpeedPanel({ onClose }: { onClose: () => void }) {
+  const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
+  const { currentTrack, playbackRate, setPlaybackRate } = usePlayer();
+  const isAudiobook = currentTrack?.mediaType === 'audiobook';
+
+  return (
+    <View
+      style={[
+        styles.queueOverlay,
+        { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 12 },
+      ]}
+    >
+      <PanelHeader
+        title="Playback speed"
+        summary={`Saved for ${isAudiobook ? 'audiobooks' : 'music'}. Pitch stays the same.`}
+        onClose={onClose}
+      />
+
+      <ScrollView
+        contentContainerStyle={styles.panelList}
+        showsVerticalScrollIndicator={false}
+      >
+        {PLAYBACK_RATE_OPTIONS.map((rate) => {
+          const selected = Math.abs(playbackRate - rate) < 0.001;
+
+          return (
+            <Pressable
+              key={rate}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: selected }}
+              accessibilityLabel={`${formatPlaybackRate(rate)} speed`}
+              onPress={() => {
+                setPlaybackRate(rate);
+                onClose();
+              }}
+              style={({ pressed }) => [
+                styles.optionRow,
+                selected && styles.optionRowSelected,
+                pressed && styles.pressed,
+              ]}
+            >
+              <Text style={[styles.optionLabel, selected && styles.optionLabelSelected]}>
+                {formatPlaybackRate(rate)}
+              </Text>
+
+              <View style={styles.optionTrailing}>
+                {rate === 1 ? <Text style={styles.optionHint}>Normal</Text> : null}
+                {selected ? (
+                  <MaterialCommunityIcons name="check" size={20} color={colors.primary} />
+                ) : null}
+              </View>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+});
+
+const SleepPanel = memo(function SleepPanel({ onClose }: { onClose: () => void }) {
+  const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
+  const { sleepTimer, setSleepTimer, setSleepTimerToEndOfTrack } = usePlayer();
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (sleepTimer.mode !== 'duration') {
+      return;
+    }
+
+    setNow(Date.now());
+    const interval = setInterval(() => setNow(Date.now()), 1_000);
+
+    return () => clearInterval(interval);
+  }, [sleepTimer]);
+
+  const choose = (action: () => void) => {
+    action();
+    onClose();
+  };
+
+  return (
+    <View
+      style={[
+        styles.queueOverlay,
+        { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 12 },
+      ]}
+    >
+      <PanelHeader
+        title="Sleep timer"
+        summary={sleepTimerSummary(sleepTimer, now)}
+        onClose={onClose}
+      />
+
+      <ScrollView
+        contentContainerStyle={styles.panelList}
+        showsVerticalScrollIndicator={false}
+      >
+        <Pressable
+          accessibilityRole="radio"
+          accessibilityState={{ checked: sleepTimer.mode === 'off' }}
+          accessibilityLabel="Turn sleep timer off"
+          onPress={() => choose(() => setSleepTimer(null))}
+          style={({ pressed }) => [
+            styles.optionRow,
+            sleepTimer.mode === 'off' && styles.optionRowSelected,
+            pressed && styles.pressed,
+          ]}
+        >
+          <Text
+            style={[
+              styles.optionLabel,
+              sleepTimer.mode === 'off' && styles.optionLabelSelected,
+            ]}
+          >
+            Off
+          </Text>
+          {sleepTimer.mode === 'off' ? (
+            <MaterialCommunityIcons name="check" size={20} color={colors.primary} />
+          ) : null}
+        </Pressable>
+
+        {SLEEP_TIMER_MINUTES.map((minutes) => {
+          const selected =
+            sleepTimer.mode === 'duration' && sleepTimer.minutes === minutes;
+
+          return (
+            <Pressable
+              key={minutes}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: selected }}
+              accessibilityLabel={`Stop after ${minutes} minutes`}
+              onPress={() => choose(() => setSleepTimer(minutes))}
+              style={({ pressed }) => [
+                styles.optionRow,
+                selected && styles.optionRowSelected,
+                pressed && styles.pressed,
+              ]}
+            >
+              <Text style={[styles.optionLabel, selected && styles.optionLabelSelected]}>
+                {minutes} minutes
+              </Text>
+              {selected ? (
+                <MaterialCommunityIcons name="check" size={20} color={colors.primary} />
+              ) : null}
+            </Pressable>
+          );
+        })}
+
+        <Pressable
+          accessibilityRole="radio"
+          accessibilityState={{ checked: sleepTimer.mode === 'endOfTrack' }}
+          accessibilityLabel="Stop at the end of this track"
+          onPress={() => choose(setSleepTimerToEndOfTrack)}
+          style={({ pressed }) => [
+            styles.optionRow,
+            sleepTimer.mode === 'endOfTrack' && styles.optionRowSelected,
+            pressed && styles.pressed,
+          ]}
+        >
+          <View style={styles.optionTextGroup}>
+            <Text
+              style={[
+                styles.optionLabel,
+                sleepTimer.mode === 'endOfTrack' && styles.optionLabelSelected,
+              ]}
+            >
+              End of this track
+            </Text>
+            <Text style={styles.optionHint}>Best for audiobook chapters</Text>
+          </View>
+          {sleepTimer.mode === 'endOfTrack' ? (
+            <MaterialCommunityIcons name="check" size={20} color={colors.primary} />
+          ) : null}
+        </Pressable>
+      </ScrollView>
+    </View>
+  );
+});
+
+function formatPlaybackRate(rate: number): string {
+  return `${rate}×`;
+}
+
+function describeSleepTimer(timer: SleepTimer, now: number): string | null {
+  if (timer.mode === 'endOfTrack') {
+    return 'Sleep · end of track';
+  }
+
+  if (timer.mode === 'duration') {
+    return `Sleep · ${formatRemainingTime(timer.endsAt, now)}`;
+  }
+
+  return null;
+}
+
+function sleepTimerSummary(timer: SleepTimer, now: number): string {
+  if (timer.mode === 'endOfTrack') {
+    return 'Stops at the end of this track.';
+  }
+
+  if (timer.mode === 'duration') {
+    return `Stops in ${formatRemainingTime(timer.endsAt, now)}.`;
+  }
+
+  return 'Playback keeps going until you stop it.';
+}
+
+function formatRemainingTime(endsAt: number, now: number): string {
+  const remainingSeconds = Math.max(0, Math.ceil((endsAt - now) / 1_000));
+  return formatPlaybackTime(remainingSeconds);
+}
 
 function repeatLabel(mode: RepeatMode): string {
   switch (mode) {
@@ -715,12 +1023,21 @@ function createStyles(colors: ThemeColors) {
     },
     timeRow: {
       flexDirection: 'row',
+      alignItems: 'center',
       justifyContent: 'space-between',
+      gap: 8,
     },
     time: {
       color: colors.textSubtle,
       fontSize: 11,
       fontVariant: ['tabular-nums'],
+    },
+    sleepStatus: {
+      flexShrink: 1,
+      color: colors.primary,
+      fontSize: 11,
+      fontWeight: '600',
+      textAlign: 'center',
     },
     controls: {
       flexDirection: 'row',
@@ -733,6 +1050,15 @@ function createStyles(colors: ThemeColors) {
       height: 40,
       alignItems: 'center',
       justifyContent: 'center',
+    },
+    rateLabel: {
+      color: colors.textMuted,
+      fontSize: 12,
+      fontWeight: '700',
+      fontVariant: ['tabular-nums'],
+    },
+    rateLabelActive: {
+      color: colors.primary,
     },
     sideButton: {
       width: 48,
@@ -854,6 +1180,46 @@ function createStyles(colors: ThemeColors) {
       height: 40,
       alignItems: 'center',
       justifyContent: 'center',
+    },
+    panelList: {
+      paddingBottom: 12,
+      gap: 8,
+    },
+    optionRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 12,
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+    },
+    optionRowSelected: {
+      borderColor: colors.primary,
+    },
+    optionLabel: {
+      color: colors.text,
+      fontSize: 15,
+    },
+    optionLabelSelected: {
+      color: colors.primary,
+      fontWeight: '600',
+    },
+    optionHint: {
+      color: colors.textMuted,
+      fontSize: 12,
+    },
+    optionTrailing: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    optionTextGroup: {
+      flex: 1,
+      gap: 2,
     },
   });
 }

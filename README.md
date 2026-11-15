@@ -32,7 +32,8 @@ Monorepo for the musix music player.
   in the audio file, with Android's per-file approval on Android 11 and newer.
   Artists from both directories appear together in **Artists**.
 - **Albums** shows a two-column grid of album cover tiles (initials when a file
-  has no embedded art), grouped by album title and artist. Tapping an album
+  has no embedded art), grouped by album title and album artist, so compilations
+  stay together instead of splitting by each track's artist. Tapping an album
   opens its tracks in album order.
 - **Artists** shows a two-column grid of artist tiles. Tags containing several
   artists (`A & B`, `A feat. B`, `A; B`) list the track under each artist.
@@ -53,8 +54,16 @@ Monorepo for the musix music player.
   into a bottom mini-player bar with the current track, progress,
   previous / next, and play-pause controls. Tapping the bar opens the full modal
   again. Playback continues when the screen locks or the app is backgrounded,
-  and the lock screen / notification shows the track with play-pause, seek, and
-  previous / next controls.
+  and the lock screen / notification shows the track with play-pause and scrub
+  controls; audiobooks also get 10-second seek buttons.
+- **Audiobooks** get a few extra playback features. The player swaps shuffle and
+  repeat for a playback-speed picker (0.75× to 2×, with pitch correction) and a
+  sleep timer (5, 15, 30, 45, or 60 minutes, or the end of the current chapter).
+  Speed is remembered for audiobooks and music separately, so a faster book does
+  not speed up songs. The player saves the listening position every few seconds
+  and resumes from it the next time the book is opened, clearing it when a
+  chapter finishes. The mini-player swaps previous / next for rewind / forward
+  10 seconds while a book is playing.
 
 ## Requirements
 

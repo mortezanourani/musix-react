@@ -10,7 +10,7 @@ export interface AlbumSummary {
   id: string;
   /** Album title tag. */
   title: string;
-  /** Artist tag used to tell same-titled albums apart. */
+  /** Album artist used to tell same-titled albums apart. */
   artist: string;
   /** Cover art from the first track in the album that has one. */
   artworkUri: string | null;

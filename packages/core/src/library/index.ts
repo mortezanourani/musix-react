@@ -39,12 +39,30 @@ export function splitArtists(value: string | null | undefined): string[] {
   return artists;
 }
 
-/** The artist used for album grouping: artist tag first, then album artist. */
+/** The artist shown for a track: the author for audiobooks, the performer otherwise. */
 export function getTrackArtistName(track: Track): string {
+  if (getTrackMediaType(track) === 'audiobook') {
+    return (
+      normalizeTag(track.author) ??
+      normalizeTag(track.albumArtist) ??
+      normalizeTag(track.artist) ??
+      UNKNOWN_ARTIST
+    );
+  }
+
+  return normalizeTag(track.artist) ?? normalizeTag(track.albumArtist) ?? UNKNOWN_ARTIST;
+}
+
+/**
+ * The artist used for album grouping. Albums by the same album artist stay
+ * together even when individual tracks credit different performers, which
+ * keeps compilations and multi-author audiobooks from splitting apart.
+ */
+export function getTrackAlbumArtistName(track: Track): string {
   return (
-    normalizeTag(track.artist) ??
     normalizeTag(track.albumArtist) ??
     (getTrackMediaType(track) === 'audiobook' ? normalizeTag(track.author) : null) ??
+    normalizeTag(track.artist) ??
     UNKNOWN_ARTIST
   );
 }
@@ -81,12 +99,13 @@ export function getTrackAlbumTitle(track: Track): string {
 }
 
 /**
- * Stable album identity derived from the album title and artist, so two
- * different artists with the same album title stay separate.
+ * Stable album identity derived from the album title and album artist, so two
+ * different artists with the same album title stay separate while tracks on a
+ * compilation share one album.
  */
 export function getAlbumId(track: Track): string {
   const album = getTrackAlbumTitle(track).toLocaleLowerCase();
-  const artist = getTrackArtistName(track).toLocaleLowerCase();
+  const artist = getTrackAlbumArtistName(track).toLocaleLowerCase();
   const mediaType = getTrackMediaType(track);
 
   return `${mediaType}::${encodeURIComponent(artist)}::${encodeURIComponent(album)}`;
@@ -118,7 +137,7 @@ function buildCollections(tracks: readonly Track[]): AlbumSummary[] {
 
     albums.set(id, {
       title: getTrackAlbumTitle(track),
-      artist: getTrackArtistName(track),
+      artist: getTrackAlbumArtistName(track),
       artworkUri: track.artworkUri,
       trackCount: 1,
       durationMs: track.durationMs,
