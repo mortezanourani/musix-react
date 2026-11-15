@@ -18,16 +18,32 @@ import {
 /** How many entries the listening history keeps. */
 const RECENT_HISTORY_LIMIT = 65;
 
+export type RepeatMode = 'off' | 'all' | 'one';
+
 type PlayerContextValue = {
   currentTrack: Track | null;
   queue: readonly Track[];
   currentIndex: number;
   isPlaying: boolean;
   isVisible: boolean;
+  /** Whether the queue is played in a shuffled order. */
+  shuffleEnabled: boolean;
+  /** What happens when the queue reaches its end. */
+  repeatMode: RepeatMode;
+  /** False when there is no next track and repeat is off. */
+  canGoNext: boolean;
+  /** Whether the previous control is available; it restarts the first track. */
+  canGoPrevious: boolean;
   /** Track IDs in the order they were played, newest first. */
   recentlyPlayedTrackIds: readonly string[];
   /** Opens the player modal and starts the track, optionally with a queue. */
   playTrack: (track: Track, queue?: readonly Track[]) => void;
+  /** Jumps to a track already in the queue. */
+  playQueueItem: (index: number) => void;
+  /** Removes one track from the queue. */
+  removeQueueItem: (index: number) => void;
+  /** Reorders the queue, keeping the current track selected. */
+  moveQueueItem: (from: number, to: number) => void;
   /** Reopens the full player modal without changing playback. */
   openPlayer: () => void;
   /** Hides the modal and leaves playback running in the mini-player. */
@@ -35,6 +51,9 @@ type PlayerContextValue = {
   togglePlayback: () => void;
   playNext: () => void;
   playPrevious: () => void;
+  toggleShuffle: () => void;
+  /** Cycles repeat between off, all, and one. */
+  cycleRepeatMode: () => void;
   seekForward: () => void;
   seekBackward: () => void;
   seekTo: (seconds: number) => void;
@@ -56,11 +75,20 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [queue, setQueue] = useState<Track[]>([]);
   const [currentIndex, setCurrentIndex] = useState(-1);
   const [isVisible, setIsVisible] = useState(false);
+  const [shuffleEnabled, setShuffleEnabled] = useState(false);
+  const [repeatMode, setRepeatMode] = useState<RepeatMode>('off');
   const [recentlyPlayedTrackIds, setRecentlyPlayedTrackIds] = useState<string[]>([]);
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const finishHandled = useRef(false);
+  // The order to restore when shuffle is turned off again.
+  const unshuffledQueue = useRef<{ queue: Track[]; index: number } | null>(null);
   const currentTrack = currentIndex >= 0 ? queue[currentIndex] ?? null : null;
   const currentTrackId = currentTrack?.id ?? null;
+
+  const canGoNext =
+    currentIndex >= 0 &&
+    (currentIndex < queue.length - 1 || (repeatMode === 'all' && queue.length > 1));
+  const canGoPrevious = currentIndex >= 0;
 
   // Keep one native player for the whole queue so lock-screen controls have one owner.
   const player = useAudioPlayer(null, { updateInterval: 250 });
@@ -83,6 +111,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   // screen / Control Center metadata and transport controls.
   useEffect(() => {
     if (!currentTrack) {
+      try {
+        player.clearLockScreenControls();
+      } catch {
+        // The player may not have registered controls yet.
+      }
       return;
     }
 
@@ -97,12 +130,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           albumTitle: getTrackAlbumTitle(currentTrack),
           artworkUrl: currentTrack.artworkUri ?? undefined,
         },
-        { showSeekForward: isAudiobook, showSeekBackward: isAudiobook },
+        {
+          showSeekForward: isAudiobook,
+          showSeekBackward: isAudiobook,
+          showNextTrack: canGoNext,
+          showPreviousTrack: canGoPrevious,
+        },
       );
     } catch {
       // Lock screen controls are best-effort; playback itself is unaffected.
     }
-  }, [currentTrack, player]);
+  }, [canGoNext, canGoPrevious, currentTrack, player]);
 
   // Replace the source on the shared player and start each newly selected track.
   useEffect(() => {
@@ -135,13 +173,24 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
     finishHandled.current = true;
 
+    if (repeatMode === 'one' || (repeatMode === 'all' && queue.length <= 1)) {
+      void player.seekTo(0).then(() => player.play());
+      return;
+    }
+
     if (currentIndex < queue.length - 1) {
       setCurrentIndex((index) => (index < queue.length - 1 ? index + 1 : index));
-    } else {
-      player.pause();
-      void player.seekTo(0);
+      return;
     }
-  }, [currentTrack, currentIndex, player, queue.length, status.didJustFinish]);
+
+    if (repeatMode === 'all') {
+      setCurrentIndex(0);
+      return;
+    }
+
+    player.pause();
+    void player.seekTo(0);
+  }, [currentTrack, currentIndex, player, queue.length, repeatMode, status.didJustFinish]);
 
   // Restore the history once; merge with tracks played while it was loading.
   useEffect(() => {
@@ -201,8 +250,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         index = 0;
       }
 
-      setQueue(items);
-      setCurrentIndex(index);
+      if (shuffleEnabled && items.length > 1) {
+        unshuffledQueue.current = { queue: items, index };
+        setQueue(shuffleQueue(items, track));
+        setCurrentIndex(0);
+      } else {
+        unshuffledQueue.current = null;
+        setQueue(items);
+        setCurrentIndex(index);
+      }
+
       setIsVisible(true);
 
       if (currentTrack?.id === track.id) {
@@ -213,7 +270,104 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         }
       }
     },
-    [currentTrack?.id, player],
+    [currentTrack?.id, player, shuffleEnabled],
+  );
+
+  const playQueueItem = useCallback(
+    (index: number) => {
+      const track = queue[index];
+
+      if (!track) {
+        return;
+      }
+
+      if (currentTrack?.id === track.id) {
+        if (player.duration > 0 && player.currentTime >= player.duration - 0.25) {
+          void player.seekTo(0).then(() => player.play());
+        } else {
+          player.play();
+        }
+        return;
+      }
+
+      setCurrentIndex(index);
+    },
+    [currentTrack?.id, player, queue],
+  );
+
+  const removeQueueItem = useCallback(
+    (index: number) => {
+      if (index < 0 || index >= queue.length) {
+        return;
+      }
+
+      if (queue.length === 1) {
+        player.pause();
+        try {
+          player.clearLockScreenControls();
+        } catch {
+          // The controls may already be gone.
+        }
+        unshuffledQueue.current = null;
+        setQueue([]);
+        setCurrentIndex(-1);
+        setIsVisible(false);
+        return;
+      }
+
+      const nextQueue = queue.filter((_, itemIndex) => itemIndex !== index);
+
+      if (index === currentIndex) {
+        setCurrentIndex(Math.min(index, nextQueue.length - 1));
+      } else if (index < currentIndex) {
+        setCurrentIndex(currentIndex - 1);
+      }
+
+      unshuffledQueue.current = null;
+      setQueue(nextQueue);
+    },
+    [currentIndex, player, queue],
+  );
+
+  const moveQueueItem = useCallback(
+    (from: number, to: number) => {
+      if (
+        from === to ||
+        from < 0 ||
+        to < 0 ||
+        from >= queue.length ||
+        to >= queue.length
+      ) {
+        return;
+      }
+
+      const nextQueue = [...queue];
+      const [moved] = nextQueue.splice(from, 1);
+
+      if (!moved) {
+        return;
+      }
+
+      nextQueue.splice(to, 0, moved);
+      unshuffledQueue.current = null;
+      setQueue(nextQueue);
+      setCurrentIndex((index) => {
+        if (index === from) {
+          return to;
+        }
+
+        if (from < index && to >= index) {
+          return index - 1;
+        }
+
+        if (from > index && to <= index) {
+          return index + 1;
+        }
+
+        return index;
+      });
+    },
+    [queue],
   );
 
   const openPlayer = useCallback(() => {
@@ -269,17 +423,100 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [player]);
 
   const playNext = useCallback(() => {
-    setCurrentIndex((index) => (index < queue.length - 1 ? index + 1 : index));
-  }, [queue.length]);
+    setCurrentIndex((index) => {
+      if (index < queue.length - 1) {
+        return index + 1;
+      }
+
+      if (repeatMode === 'all' && queue.length > 1) {
+        return 0;
+      }
+
+      return index;
+    });
+  }, [queue.length, repeatMode]);
 
   const playPrevious = useCallback(() => {
-    if (player.currentTime > 3 || currentIndex <= 0) {
+    if (currentIndex < 0) {
+      return;
+    }
+
+    if (player.currentTime > 3) {
       void player.seekTo(0);
       return;
     }
 
-    setCurrentIndex(currentIndex - 1);
-  }, [currentIndex, player]);
+    // The first track has no previous one; restart it instead of doing nothing.
+    if (currentIndex === 0 && !(repeatMode === 'all' && queue.length > 1)) {
+      void player.seekTo(0);
+      return;
+    }
+
+    setCurrentIndex((index) => {
+      if (index > 0) {
+        return index - 1;
+      }
+
+      if (repeatMode === 'all' && queue.length > 1) {
+        return queue.length - 1;
+      }
+
+      return index;
+    });
+  }, [currentIndex, player, queue.length, repeatMode]);
+
+  const toggleShuffle = useCallback(() => {
+    if (shuffleEnabled) {
+      const saved = unshuffledQueue.current;
+      const currentId = currentTrack?.id;
+
+      if (saved && currentId) {
+        const index = saved.queue.findIndex((track) => track.id === currentId);
+
+        if (index !== -1) {
+          setQueue(saved.queue);
+          setCurrentIndex(index);
+        }
+      }
+
+      unshuffledQueue.current = null;
+      setShuffleEnabled(false);
+      return;
+    }
+
+    if (queue.length > 0) {
+      unshuffledQueue.current = { queue: [...queue], index: currentIndex };
+      setQueue(shuffleQueue(queue, currentTrack ?? undefined));
+      setCurrentIndex(0);
+    }
+
+    setShuffleEnabled(true);
+  }, [currentIndex, currentTrack, queue, shuffleEnabled]);
+
+  const cycleRepeatMode = useCallback(() => {
+    setRepeatMode((mode) => (mode === 'off' ? 'all' : mode === 'all' ? 'one' : 'off'));
+  }, []);
+
+  const playNextRef = useRef<() => void>(() => {});
+  const playPreviousRef = useRef<() => void>(() => {});
+
+  useEffect(() => {
+    playNextRef.current = playNext;
+    playPreviousRef.current = playPrevious;
+  }, [playNext, playPrevious]);
+
+  // Transport buttons on the lock screen / notification advance the queue.
+  useEffect(() => {
+    const nextSubscription = player.addListener('lockScreenNext', () => playNextRef.current());
+    const previousSubscription = player.addListener('lockScreenPrevious', () =>
+      playPreviousRef.current(),
+    );
+
+    return () => {
+      nextSubscription.remove();
+      previousSubscription.remove();
+    };
+  }, [player]);
 
   const value = useMemo(
     () => ({
@@ -288,13 +525,22 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       currentIndex,
       isPlaying: status.playing,
       isVisible,
+      shuffleEnabled,
+      repeatMode,
+      canGoNext,
+      canGoPrevious,
       recentlyPlayedTrackIds,
       playTrack,
+      playQueueItem,
+      removeQueueItem,
+      moveQueueItem,
       openPlayer,
       minimizePlayer,
       togglePlayback,
       playNext,
       playPrevious,
+      toggleShuffle,
+      cycleRepeatMode,
       seekForward,
       seekBackward,
       seekTo,
@@ -305,13 +551,22 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       currentIndex,
       status.playing,
       isVisible,
+      shuffleEnabled,
+      repeatMode,
+      canGoNext,
+      canGoPrevious,
       recentlyPlayedTrackIds,
       playTrack,
+      playQueueItem,
+      removeQueueItem,
+      moveQueueItem,
       openPlayer,
       minimizePlayer,
       togglePlayback,
       playNext,
       playPrevious,
+      toggleShuffle,
+      cycleRepeatMode,
       seekForward,
       seekBackward,
       seekTo,
@@ -336,6 +591,20 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       </PlayerProgressContext.Provider>
     </PlayerContext.Provider>
   );
+}
+
+/** Shuffles tracks with Fisher-Yates, optionally keeping one track first. */
+function shuffleQueue(items: readonly Track[], first?: Track): Track[] {
+  const rest = items.filter((track) => track.id !== first?.id);
+
+  for (let index = rest.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    const current = rest[index]!;
+    rest[index] = rest[swapIndex]!;
+    rest[swapIndex] = current;
+  }
+
+  return first ? [first, ...rest] : rest;
 }
 
 function mergeRecentTrackIds(

@@ -44,14 +44,17 @@ Monorepo for the musix music player.
   Embedded cover art is cached under the app's files directory by the native
   module.
 - The **Now Playing** modal (a real modal overlay, not a navigation screen)
-  shows the current track's artwork and tags, a tappable progress bar, and
-  previous / play-pause / next controls. Playback uses `expo-audio`, starts when
-  a track is tapped, and advances through the visible list. Minimizing the modal
-  keeps playback running and collapses it into a bottom mini-player bar with the
-  current track, progress, play-pause, and next controls. Tapping the bar opens
-  the full modal again. Playback continues when the screen locks or the app is
-  backgrounded, and the lock screen / notification shows the track with
-  play-pause and seek controls.
+  shows the current track's artwork and tags, a draggable progress bar,
+  previous / play-pause / next controls, and shuffle and repeat (off / all /
+  one) toggles. A queue button opens a **Queue** panel where tracks can be
+  selected, reordered, or removed. Swipe the player down or tap the chevron to
+  minimize it. Playback uses `expo-audio`, starts when a track is tapped, and
+  advances through the queue. Minimizing keeps playback running and collapses it
+  into a bottom mini-player bar with the current track, progress,
+  previous / next, and play-pause controls. Tapping the bar opens the full modal
+  again. Playback continues when the screen locks or the app is backgrounded,
+  and the lock screen / notification shows the track with play-pause, seek, and
+  previous / next controls.
 
 ## Requirements
 

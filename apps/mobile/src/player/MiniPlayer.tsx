@@ -29,11 +29,12 @@ function MiniPlayerBar() {
   const styles = useThemedStyles(createStyles);
   const {
     currentTrack,
-    queue,
-    currentIndex,
     isPlaying,
+    canGoNext,
+    canGoPrevious,
     openPlayer,
     togglePlayback,
+    playPrevious,
     playNext,
   } = usePlayer();
   const { position, duration } = usePlayerProgress();
@@ -43,7 +44,6 @@ function MiniPlayerBar() {
   }
 
   const progress = duration > 0 ? Math.min(Math.max(position / duration, 0), 1) : 0;
-  const canGoNext = currentIndex < queue.length - 1;
 
   return (
     <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, 8) }]}>
@@ -61,24 +61,10 @@ function MiniPlayerBar() {
           <ArtworkTile
             artworkUri={currentTrack.artworkUri}
             title={currentTrack.title}
-            kind="track"
+            kind={currentTrack.mediaType === 'audiobook' ? 'audiobook' : 'track'}
             borderRadius={8}
             iconSize={24}
           />
-
-          <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
-              onPress={togglePlayback}
-              hitSlop={8}
-              style={({ pressed }) => [styles.control, styles.playButton, pressed && styles.pressed]}
-          >
-            <MaterialCommunityIcons
-                name={isPlaying ? 'pause' : 'play'}
-                size={24}
-                color={colors.primary}
-            />
-          </Pressable>
         </View>
 
         <View style={styles.body}>
@@ -90,6 +76,54 @@ function MiniPlayerBar() {
           </Text>
         </View>
       </Pressable>
+
+      <View style={styles.controls}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Previous track"
+          accessibilityState={{ disabled: !canGoPrevious }}
+          disabled={!canGoPrevious}
+          onPress={playPrevious}
+          hitSlop={8}
+          style={({ pressed }) => [styles.controlButton, pressed && styles.pressed]}
+        >
+          <MaterialCommunityIcons
+            name="skip-previous"
+            size={26}
+            color={canGoPrevious ? colors.text : colors.textSubtle}
+          />
+        </Pressable>
+
+        <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
+            onPress={togglePlayback}
+            hitSlop={8}
+            style={({ pressed }) => [styles.controlButton, styles.playButton, pressed && styles.pressed]}
+        >
+          <MaterialCommunityIcons
+              name={isPlaying ? 'pause' : 'play'}
+              size={24}
+              color={isPlaying ? colors.text : colors.primary}
+          />
+        </Pressable>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Next track"
+          accessibilityState={{ disabled: !canGoNext }}
+          disabled={!canGoNext}
+          onPress={playNext}
+          hitSlop={8}
+          style={({ pressed }) => [styles.controlButton, pressed && styles.pressed]}
+        >
+          <MaterialCommunityIcons
+            name="skip-next"
+            size={26}
+            color={canGoNext ? colors.text : colors.textSubtle}
+          />
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -146,6 +180,17 @@ function createStyles(colors: ThemeColors) {
       color: colors.textMuted,
       fontSize: 12,
     },
+    controls: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingBottom: 12,
+    },
+    controlButton: {
+      width: 38,
+      height: 38,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     control: {
       width: 48,
       height: 48,
@@ -155,9 +200,9 @@ function createStyles(colors: ThemeColors) {
     playButton: {
       width: 48,
       height: 48,
-      borderRadius: 8,
-      position: 'absolute',
-      backgroundColor: colors.crystal,
+    },
+    playing: {
+      color: colors.primary,
     },
     pressed: {
       opacity: 0.65,
