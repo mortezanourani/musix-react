@@ -9,6 +9,7 @@ export {
   getAlbumId,
   getAlbumTracks,
   getArtistAlbums,
+  getArtistTracks,
   getTrackAlbumArtistName,
   getTrackAlbumTitle,
   getTrackArtistName,

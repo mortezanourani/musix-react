@@ -1,12 +1,15 @@
 import { getArtistAlbums } from '@musix/core';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useMemo } from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { CollectionTile } from '../components/CollectionTile';
 import { useLibrary } from '../library/LibraryContext';
 import { libraryEmptyMessage, libraryStatusMessage } from '../library/messages';
 import type { MainStackParamList } from '../navigation/types';
+import { usePlayer } from '../player/PlayerContext';
 import type { ThemeColors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 import { useThemedStyles } from '../theme/useThemedStyles';
 
 /** Lists the albums of one artist, opened from the Home feed. */
@@ -15,6 +18,8 @@ type ArtistAlbumsScreenProps = NativeStackScreenProps<MainStackParamList, 'Artis
 export function ArtistAlbumsScreen({ navigation, route }: ArtistAlbumsScreenProps) {
   const { artistName } = route.params;
   const { tracks, status } = useLibrary();
+  const { playArtist } = usePlayer();
+  const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   const albums = useMemo(() => getArtistAlbums(tracks, artistName), [tracks, artistName]);
   const trackCount = albums.reduce((total, album) => total + album.trackCount, 0);
@@ -31,7 +36,23 @@ export function ArtistAlbumsScreen({ navigation, route }: ArtistAlbumsScreenProp
 
   return (
     <View style={styles.screen}>
-      <Text style={styles.summary}>{statusMessage}</Text>
+      <View style={styles.header}>
+        <Text style={styles.summary}>{statusMessage}</Text>
+        {trackCount > 0 ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Play all tracks by ${artistName}`}
+            onPress={() => playArtist(artistName)}
+            style={({ pressed }) => [
+              styles.playButton,
+              pressed && styles.playButtonPressed,
+            ]}
+          >
+            <MaterialCommunityIcons name="play" size={14} color={colors.onPrimary} />
+            <Text style={styles.playButtonText}>Play</Text>
+          </Pressable>
+        ) : null}
+      </View>
 
       <FlatList
         data={albums}
@@ -65,10 +86,34 @@ function createStyles(colors: ThemeColors) {
       paddingBottom: 8,
       backgroundColor: colors.background,
     },
-    summary: {
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 12,
       marginBottom: 16,
+    },
+    summary: {
+      flexShrink: 1,
       color: colors.textMuted,
       fontSize: 12,
+    },
+    playButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 16,
+      backgroundColor: colors.primary,
+    },
+    playButtonPressed: {
+      backgroundColor: colors.primaryPressed,
+    },
+    playButtonText: {
+      color: colors.onPrimary,
+      fontSize: 12,
+      fontWeight: '700',
     },
     columns: {
       justifyContent: 'flex-start',

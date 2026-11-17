@@ -14,12 +14,12 @@ Monorepo for the musix music player.
 ## Current state
 
 - `apps/mobile` — **Home** opens with the **Musix** title and a live library
-  search, then horizontally swipeable shelves for **Recently played** tracks,
-  **Albums**, **Artists**, and **Books**.
+  search, then horizontally swipeable shelves for **Recently played** albums,
+  artists, and tracks, plus **Albums**, **Artists**, and **Books**.
   Cards are sized for two and a half squares, then scaled down by 10% so the
   next card peeks in. Tapping a track starts playback in the **Now Playing**
-  modal; tapping an album opens its tracks; tapping an artist opens that
-  artist's albums and audiobooks. Files from the device's `Music` directory
+  modal; tapping an album or artist opens its detail screen. Files from the
+  device's `Music` directory
   appear as albums; files from its `Audiobooks` directory appear as books. The
   **Update Library** button requests
   audio permission, scans both directories through the media store, reads
@@ -34,10 +34,13 @@ Monorepo for the musix music player.
 - **Albums** shows a two-column grid of album cover tiles (initials when a file
   has no embedded art), grouped by album title and album artist, so compilations
   stay together instead of splitting by each track's artist. Tapping an album
-  opens its tracks in album order.
+  opens its tracks in album order and has a **Play** button that queues the
+  whole album.
 - **Artists** shows a two-column grid of artist tiles. Tags containing several
   artists (`A & B`, `A feat. B`, `A; B`) list the track under each artist.
-  Tapping an artist opens that artist's albums.
+  Tapping an artist opens that artist's albums, where **Play** queues all of
+  their tracks album by album. Playing an album or artist shows it in
+  **Recently played** instead of the individual track that started it.
 - The **Settings** page (gear icon on Home) lets you choose **System**,
   **Light**, or **Dark** appearance, update the library, and see its scan
   status. Apple Music red (`#fa243c`) stays the accent color in both themes.

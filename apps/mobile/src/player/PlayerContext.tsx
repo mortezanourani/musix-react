@@ -1,4 +1,6 @@
 import {
+  getAlbumTracks,
+  getArtistTracks,
   getTrackAlbumTitle,
   getTrackArtistName,
   getTrackMediaType,
@@ -15,9 +17,12 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { useLibrary } from '../library/LibraryContext';
 import {
-  loadRecentlyPlayedTrackIds,
-  saveRecentlyPlayedTrackIds,
+  loadRecentlyPlayedItems,
+  recentItemKey,
+  saveRecentlyPlayedItems,
+  type RecentItem,
 } from './recentlyPlayedStorage';
 import {
   DEFAULT_PLAYBACK_RATES,
@@ -66,10 +71,14 @@ type PlayerContextValue = {
   canGoNext: boolean;
   /** Whether the previous control is available; it restarts the first track. */
   canGoPrevious: boolean;
-  /** Track IDs in the order they were played, newest first. */
-  recentlyPlayedTrackIds: readonly string[];
+  /** Albums, artists, and tracks in the order they were played, newest first. */
+  recentlyPlayed: readonly RecentItem[];
   /** Opens the player modal and starts the track, optionally with a queue. */
   playTrack: (track: Track, queue?: readonly Track[]) => void;
+  /** Plays all tracks in an album, starting with the first one. */
+  playAlbum: (albumId: string) => void;
+  /** Plays all tracks by an artist, album by album. */
+  playArtist: (artistName: string) => void;
   /** Jumps to a track already in the queue. */
   playQueueItem: (index: number) => void;
   /** Removes one track from the queue. */
@@ -110,6 +119,7 @@ const PlayerContext = createContext<PlayerContextValue | null>(null);
 const PlayerProgressContext = createContext<PlayerProgress | null>(null);
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
+  const { tracks: libraryTracks } = useLibrary();
   const [queue, setQueue] = useState<Track[]>([]);
   const [currentIndex, setCurrentIndex] = useState(-1);
   const [isVisible, setIsVisible] = useState(false);
@@ -117,9 +127,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [repeatMode, setRepeatMode] = useState<RepeatMode>('off');
   const [playbackRates, setPlaybackRates] = useState<PlaybackRates>(DEFAULT_PLAYBACK_RATES);
   const [sleepTimer, setSleepTimerState] = useState<SleepTimer>({ mode: 'off' });
-  const [recentlyPlayedTrackIds, setRecentlyPlayedTrackIds] = useState<string[]>([]);
+  const [recentItems, setRecentItems] = useState<RecentItem[]>([]);
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const finishHandled = useRef(false);
+  // The album or artist that started the current queue, if any. While set,
+  // track changes keep recording that source instead of individual tracks.
+  const activeRecentSource = useRef<RecentItem | null>(null);
   // Positions saved for audiobooks, keyed by track ID.
   const resumePositions = useRef<Record<string, number>>({});
   const lastResumeSaveAt = useRef(0);
@@ -132,6 +145,22 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const playbackRate = currentMediaType ? playbackRates[currentMediaType] : 1;
 
   currentTrackRef.current = currentTrack;
+
+  /** Prepends an item to the history, keeping it de-duplicated and capped. */
+  const recordRecentItem = useCallback((item: RecentItem) => {
+    setRecentItems((previous) => {
+      const key = recentItemKey(item);
+
+      if (previous[0] && recentItemKey(previous[0]) === key) {
+        return previous;
+      }
+
+      return [item, ...previous.filter((entry) => recentItemKey(entry) !== key)].slice(
+        0,
+        RECENT_HISTORY_LIMIT,
+      );
+    });
+  }, []);
 
   const canGoNext =
     currentIndex >= 0 &&
@@ -442,16 +471,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     status.didJustFinish,
   ]);
 
-  // Restore the history once; merge with tracks played while it was loading.
+  // Restore the history once; merge with items played while it was loading.
   useEffect(() => {
     let cancelled = false;
 
-    loadRecentlyPlayedTrackIds().then((stored) => {
+    loadRecentlyPlayedItems().then((stored) => {
       if (cancelled) {
         return;
       }
 
-      setRecentlyPlayedTrackIds((current) => mergeRecentTrackIds(current, stored));
+      setRecentItems((current) => mergeRecentItems(current, stored));
       setHistoryLoaded(true);
     });
 
@@ -460,24 +489,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // Any track that becomes current has been played: a tap, the next/previous
-  // controls, auto-advance, or an audiobook chapter reached the same way.
+  // Any track that becomes current has been played: the next/previous controls,
+  // auto-advance, or an audiobook chapter reached the same way. Album and
+  // artist playback records its source when it starts instead.
   useEffect(() => {
-    if (!currentTrackId) {
+    if (!currentTrackId || activeRecentSource.current) {
       return;
     }
 
-    setRecentlyPlayedTrackIds((previous) => {
-      if (previous[0] === currentTrackId) {
-        return previous;
-      }
-
-      return [
-        currentTrackId,
-        ...previous.filter((trackId) => trackId !== currentTrackId),
-      ].slice(0, RECENT_HISTORY_LIMIT);
-    });
-  }, [currentTrackId]);
+    recordRecentItem({ kind: 'track', id: currentTrackId });
+  }, [currentTrackId, recordRecentItem]);
 
   // Saved only after hydration so the initial empty list cannot erase history.
   useEffect(() => {
@@ -485,42 +506,97 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    void saveRecentlyPlayedTrackIds(recentlyPlayedTrackIds).catch(() => {
+    void saveRecentlyPlayedItems(recentItems).catch(() => {
       // History is best-effort; playback itself is unaffected.
     });
-  }, [historyLoaded, recentlyPlayedTrackIds]);
+  }, [historyLoaded, recentItems]);
 
-  const playTrack = useCallback(
-    (track: Track, nextQueue?: readonly Track[]) => {
-      const items = nextQueue && nextQueue.length > 0 ? [...nextQueue] : [track];
-      let index = items.findIndex((item) => item.id === track.id);
+  /** Resumes or restarts a track that is already current. */
+  const resumeIfCurrent = useCallback(
+    (track: Track) => {
+      if (currentTrack?.id !== track.id) {
+        return;
+      }
+
+      if (player.duration > 0 && player.currentTime >= player.duration - 0.25) {
+        void player.seekTo(0).then(() => player.play());
+      } else {
+        player.play();
+      }
+    },
+    [currentTrack?.id, player],
+  );
+
+  /** Replaces the queue and opens the player with the given track selected. */
+  const startQueue = useCallback(
+    (items: readonly Track[], track: Track) => {
+      const nextQueue = [...items];
+      let index = nextQueue.findIndex((item) => item.id === track.id);
 
       if (index === -1) {
-        items.unshift(track);
+        nextQueue.unshift(track);
         index = 0;
       }
 
-      if (shuffleEnabled && items.length > 1) {
-        unshuffledQueue.current = { queue: items, index };
-        setQueue(shuffleQueue(items, track));
+      if (shuffleEnabled && nextQueue.length > 1) {
+        unshuffledQueue.current = { queue: nextQueue, index };
+        setQueue(shuffleQueue(nextQueue, track));
         setCurrentIndex(0);
       } else {
         unshuffledQueue.current = null;
-        setQueue(items);
+        setQueue(nextQueue);
         setCurrentIndex(index);
       }
 
       setIsVisible(true);
-
-      if (currentTrack?.id === track.id) {
-        if (player.duration > 0 && player.currentTime >= player.duration - 0.25) {
-          void player.seekTo(0).then(() => player.play());
-        } else {
-          player.play();
-        }
-      }
     },
-    [currentTrack?.id, player, shuffleEnabled],
+    [shuffleEnabled],
+  );
+
+  const playTrack = useCallback(
+    (track: Track, nextQueue?: readonly Track[]) => {
+      const items = nextQueue && nextQueue.length > 0 ? [...nextQueue] : [track];
+      activeRecentSource.current = null;
+      startQueue(items, track);
+      resumeIfCurrent(track);
+    },
+    [resumeIfCurrent, startQueue],
+  );
+
+  const playAlbum = useCallback(
+    (albumId: string) => {
+      const items = getAlbumTracks(libraryTracks, albumId);
+      const first = items[0];
+
+      if (!first) {
+        return;
+      }
+
+      const source: RecentItem = { kind: 'album', id: albumId };
+      activeRecentSource.current = source;
+      recordRecentItem(source);
+      startQueue(items, first);
+      resumeIfCurrent(first);
+    },
+    [libraryTracks, recordRecentItem, resumeIfCurrent, startQueue],
+  );
+
+  const playArtist = useCallback(
+    (artistName: string) => {
+      const items = getArtistTracks(libraryTracks, artistName);
+      const first = items[0];
+
+      if (!first) {
+        return;
+      }
+
+      const source: RecentItem = { kind: 'artist', name: artistName };
+      activeRecentSource.current = source;
+      recordRecentItem(source);
+      startQueue(items, first);
+      resumeIfCurrent(first);
+    },
+    [libraryTracks, recordRecentItem, resumeIfCurrent, startQueue],
   );
 
   const playQueueItem = useCallback(
@@ -794,8 +870,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       sleepTimer,
       canGoNext,
       canGoPrevious,
-      recentlyPlayedTrackIds,
+      recentlyPlayed: recentItems,
       playTrack,
+      playAlbum,
+      playArtist,
       playQueueItem,
       removeQueueItem,
       moveQueueItem,
@@ -825,8 +903,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       sleepTimer,
       canGoNext,
       canGoPrevious,
-      recentlyPlayedTrackIds,
+      recentItems,
       playTrack,
+      playAlbum,
+      playArtist,
       playQueueItem,
       removeQueueItem,
       moveQueueItem,
@@ -889,20 +969,22 @@ function shuffleQueue(items: readonly Track[], first?: Track): Track[] {
   return first ? [first, ...rest] : rest;
 }
 
-function mergeRecentTrackIds(
-  current: readonly string[],
-  stored: readonly string[],
-): string[] {
+function mergeRecentItems(
+  current: readonly RecentItem[],
+  stored: readonly RecentItem[],
+): RecentItem[] {
   const seen = new Set<string>();
-  const merged: string[] = [];
+  const merged: RecentItem[] = [];
 
-  for (const trackId of [...current, ...stored]) {
-    if (seen.has(trackId)) {
+  for (const item of [...current, ...stored]) {
+    const key = recentItemKey(item);
+
+    if (seen.has(key)) {
       continue;
     }
 
-    seen.add(trackId);
-    merged.push(trackId);
+    seen.add(key);
+    merged.push(item);
 
     if (merged.length >= RECENT_HISTORY_LIMIT) {
       break;

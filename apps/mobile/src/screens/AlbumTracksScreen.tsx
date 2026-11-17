@@ -1,7 +1,8 @@
 import { getAlbumById, getAlbumTracks } from '@musix/core';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useLayoutEffect, useMemo } from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { ArtworkTile } from '../components/ArtworkTile';
 import { TrackRow } from '../components/TrackRow';
 import { useLibrary } from '../library/LibraryContext';
@@ -9,6 +10,7 @@ import { libraryEmptyMessage } from '../library/messages';
 import type { MainStackParamList } from '../navigation/types';
 import { usePlayer } from '../player/PlayerContext';
 import type { ThemeColors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 import { useThemedStyles } from '../theme/useThemedStyles';
 import { formatTotalDuration } from '../utils/format';
 
@@ -18,7 +20,8 @@ type AlbumTracksScreenProps = NativeStackScreenProps<MainStackParamList, 'AlbumT
 export function AlbumTracksScreen({ navigation, route }: AlbumTracksScreenProps) {
   const { albumId } = route.params;
   const { tracks, status } = useLibrary();
-  const { playTrack, currentTrack } = usePlayer();
+  const { playAlbum, playTrack, currentTrack } = usePlayer();
+  const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   const album = useMemo(() => getAlbumById(tracks, albumId), [tracks, albumId]);
   const albumTracks = useMemo(() => getAlbumTracks(tracks, albumId), [tracks, albumId]);
@@ -62,6 +65,20 @@ export function AlbumTracksScreen({ navigation, route }: AlbumTracksScreenProps)
                 {formatTotalDuration(album.durationMs)}
               </Text>
               {isAudiobook ? <Text style={styles.heroKind}>Audiobook</Text> : null}
+              {albumTracks.length > 0 ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Play ${isAudiobook ? 'audiobook' : 'album'} ${album.title}`}
+                  onPress={() => playAlbum(album.id)}
+                  style={({ pressed }) => [
+                    styles.playButton,
+                    pressed && styles.playButtonPressed,
+                  ]}
+                >
+                  <MaterialCommunityIcons name="play" size={16} color={colors.onPrimary} />
+                  <Text style={styles.playButtonText}>Play</Text>
+                </Pressable>
+              ) : null}
             </View>
           </View>
         ) : null
@@ -117,6 +134,25 @@ function createStyles(colors: ThemeColors) {
       fontWeight: '700',
       letterSpacing: 0.6,
       textTransform: 'uppercase',
+    },
+    playButton: {
+      alignSelf: 'flex-start',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: 12,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 18,
+      backgroundColor: colors.primary,
+    },
+    playButtonPressed: {
+      backgroundColor: colors.primaryPressed,
+    },
+    playButtonText: {
+      color: colors.onPrimary,
+      fontSize: 13,
+      fontWeight: '700',
     },
     empty: {
       marginTop: 24,

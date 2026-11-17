@@ -1,5 +1,5 @@
 import { buildAlbums, buildArtists, buildAudiobooks, getTrackArtistName } from '@musix/core';
-import type { AlbumSummary, Track } from '@musix/core';
+import type { AlbumSummary, ArtistSummary, Track } from '@musix/core';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useMemo, useState } from 'react';
 import {
@@ -25,8 +25,14 @@ import { useThemedStyles } from "../theme/useThemedStyles";
 
 type HomeScreenProps = NativeStackScreenProps<MainStackParamList, 'HomeFeed'>;
 
-/** How many tracks the Recently played shelf keeps around. */
-const RECENT_TRACK_LIMIT = 20;
+/** A recently played item resolved against the current library. */
+type RecentEntry =
+  | { kind: 'track'; item: Track }
+  | { kind: 'album'; item: AlbumSummary }
+  | { kind: 'artist'; item: ArtistSummary };
+
+/** How many entries the Recently played / Songs shelf shows. */
+const RECENT_LIMIT = 20;
 
 export function HomeScreen({ navigation }: HomeScreenProps) {
   const insets = useSafeAreaInsets();
@@ -34,43 +40,93 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   const { tracks, status, error, updateLibrary } = useLibrary();
-  const { playTrack, recentlyPlayedTrackIds } = usePlayer();
+  const { playTrack, recentlyPlayed } = usePlayer();
   const [query, setQuery] = useState('');
 
   const searchTerm = query.trim().toLocaleLowerCase();
   const searching = searchTerm.length > 0;
 
-  const tracksById = useMemo(
-      () => new Map(tracks.map((track) => [track.id, track])),
-      [tracks],
-  );
-
-  // Real listening history, newest first, resolved against the current library.
-  const recentTracks = useMemo(
-      () =>
-          recentlyPlayedTrackIds
-              .map((trackId) => tracksById.get(trackId))
-              .filter((track): track is Track => track !== undefined)
-              .slice(0, RECENT_TRACK_LIMIT),
-      [recentlyPlayedTrackIds, tracksById],
-  );
   const artists = useMemo(() => buildArtists(tracks), [tracks]);
   const regularAlbums = useMemo(() => buildAlbums(tracks), [tracks]);
   const audiobooks = useMemo(() => buildAudiobooks(tracks), [tracks]);
 
-  const visibleTracks = useMemo(() => {
-    if (!searching) {
-      return recentTracks;
+  const tracksById = useMemo(
+      () => new Map(tracks.map((track) => [track.id, track])),
+      [tracks],
+  );
+  const albumsById = useMemo(
+      () =>
+          new Map(
+              [...regularAlbums, ...audiobooks].map((album) => [album.id, album]),
+          ),
+      [regularAlbums, audiobooks],
+  );
+  const artistsByName = useMemo(
+      () =>
+          new Map(
+              artists.map((artist) => [artist.name.toLocaleLowerCase(), artist]),
+          ),
+      [artists],
+  );
+
+  // Real listening history, newest first, resolved against the current library.
+  const recentEntries = useMemo<RecentEntry[]>(() => {
+    const entries: RecentEntry[] = [];
+
+    for (const item of recentlyPlayed) {
+      if (entries.length >= RECENT_LIMIT) {
+        break;
+      }
+
+      if (item.kind === 'track') {
+        const track = tracksById.get(item.id);
+
+        if (track) {
+          entries.push({ kind: 'track', item: track });
+        }
+        continue;
+      }
+
+      if (item.kind === 'album') {
+        const album = albumsById.get(item.id);
+
+        if (album) {
+          entries.push({ kind: 'album', item: album });
+        }
+        continue;
+      }
+
+      const artist = artistsByName.get(item.name.toLocaleLowerCase());
+
+      if (artist) {
+        entries.push({ kind: 'artist', item: artist });
+      }
     }
 
-    return tracks
-        .filter((track) =>
-            [track.title, track.artist, track.albumArtist, track.album].some((value) =>
-                value?.toLocaleLowerCase().includes(searchTerm),
-            ),
-        )
-        .slice(0, RECENT_TRACK_LIMIT);
-  }, [recentTracks, searching, searchTerm, tracks]);
+    return entries;
+  }, [albumsById, artistsByName, recentlyPlayed, tracksById]);
+
+  const searchEntries = useMemo<RecentEntry[]>(
+      () =>
+          tracks
+              .filter((track) =>
+                  [track.title, track.artist, track.albumArtist, track.album].some((value) =>
+                      value?.toLocaleLowerCase().includes(searchTerm),
+                  ),
+              )
+              .slice(0, RECENT_LIMIT)
+              .map((track): RecentEntry => ({ kind: 'track', item: track })),
+      [searchTerm, tracks],
+  );
+
+  const visibleEntries = searching ? searchEntries : recentEntries;
+  const visibleTrackQueue = useMemo(
+      () =>
+          visibleEntries.flatMap((entry) =>
+              entry.kind === 'track' ? [entry.item] : [],
+          ),
+      [visibleEntries],
+  );
 
   const visibleArtists = useMemo(() => {
     if (!searching) {
@@ -106,7 +162,7 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
 
   const noResults =
       searching &&
-      visibleTracks.length === 0 &&
+      visibleEntries.length === 0 &&
       visibleAlbums.length === 0 &&
       visibleArtists.length === 0 &&
       visibleAudiobooks.length === 0;
@@ -164,29 +220,75 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
             </Text>
         ) : (
             <>
-              {visibleTracks.length > 0 || !searching ? (
-                  <Shelf
+              {visibleEntries.length > 0 || !searching ? (
+                  <Shelf<RecentEntry>
                       title={searching ? 'Songs' : 'Recently played'}
-                      data={visibleTracks}
-                      keyExtractor={(track) => track.id}
+                      data={visibleEntries}
+                      keyExtractor={(entry) =>
+                          entry.kind === 'artist'
+                              ? `artist:${entry.item.name.toLocaleLowerCase()}`
+                              : `${entry.kind}:${entry.item.id}`
+                      }
                       cardWidth={cardWidth}
                       emptyMessage={libraryEmptyMessage(
                           status,
                           searching
                               ? 'No tracks match your search.'
-                              : 'Tracks you play will appear here.',
+                              : 'Tracks, albums, and artists you play will appear here.',
                       )}
-                      renderItem={({ item }) => (
-                          <MediaCard
-                              width={cardWidth}
-                              artworkUri={item.artworkUri}
-                              title={item.title}
-                              kind="track"
-                              subtitle={getTrackArtistName(item)}
-                              accessibilityLabel={`Play ${item.title} by ${getTrackArtistName(item)}`}
-                              onPress={() => playTrack(item, visibleTracks)}
-                          />
-                      )}
+                      renderItem={({ item: entry }) => {
+                        if (entry.kind === 'album') {
+                          const label = entry.item.isAudiobook ? 'Book' : 'Album';
+
+                          return (
+                              <MediaCard
+                                  width={cardWidth}
+                                  artworkUri={entry.item.artworkUri}
+                                  title={entry.item.title}
+                                  kind={entry.item.isAudiobook ? 'audiobook' : 'album'}
+                                  subtitle={`${label} · ${entry.item.artist}`}
+                                  accessibilityLabel={`Open ${label.toLowerCase()} ${entry.item.title}`}
+                                  onPress={() =>
+                                      navigation.navigate('AlbumTracks', {
+                                        albumId: entry.item.id,
+                                      })
+                                  }
+                              />
+                          );
+                        }
+
+                        if (entry.kind === 'artist') {
+                          return (
+                              <MediaCard
+                                  width={cardWidth}
+                                  artworkUri={entry.item.artworkUri}
+                                  title={entry.item.name}
+                                  kind="artist"
+                                  subtitle={`Artist · ${entry.item.albumCount} ${
+                                      entry.item.albumCount === 1 ? 'album' : 'albums'
+                                  }`}
+                                  accessibilityLabel={`Open albums and books by ${entry.item.name}`}
+                                  onPress={() =>
+                                      navigation.navigate('ArtistAlbums', {
+                                        artistName: entry.item.name,
+                                      })
+                                  }
+                              />
+                          );
+                        }
+
+                        return (
+                            <MediaCard
+                                width={cardWidth}
+                                artworkUri={entry.item.artworkUri}
+                                title={entry.item.title}
+                                kind="track"
+                                subtitle={`Song · ${getTrackArtistName(entry.item)}`}
+                                accessibilityLabel={`Play ${entry.item.title} by ${getTrackArtistName(entry.item)}`}
+                                onPress={() => playTrack(entry.item, visibleTrackQueue)}
+                            />
+                        );
+                      }}
                   />
               ) : null}
               

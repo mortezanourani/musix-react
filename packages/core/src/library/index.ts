@@ -231,6 +231,25 @@ export function getArtistAlbums(tracks: readonly Track[], artistName: string): A
   );
 }
 
+/** All tracks by an artist, grouped by album and in track-number order. */
+export function getArtistTracks(tracks: readonly Track[], artistName: string): Track[] {
+  const seen = new Set<string>();
+  const artistTracks: Track[] = [];
+
+  for (const album of getArtistAlbums(tracks, artistName)) {
+    for (const track of getAlbumTracks(tracks, album.id)) {
+      if (seen.has(track.id)) {
+        continue;
+      }
+
+      seen.add(track.id);
+      artistTracks.push(track);
+    }
+  }
+
+  return artistTracks;
+}
+
 function compareUnknownLast(a: string, b: string, unknown: string): number {
   const unknownKey = unknown.toLocaleLowerCase();
   const aUnknown = a.toLocaleLowerCase() === unknownKey;
